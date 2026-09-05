@@ -1,5 +1,5 @@
-Members:
-Baccay, John Edison
-Morgado, Roan Carmelo 
-Tabio, Mike Justine
+Members: <br>
+Baccay, John Edison <br>
+Morgado, Roan Carmelo <br>
+Tabio, Mike Justine <br>
 Tattao, Beatriz Karla
