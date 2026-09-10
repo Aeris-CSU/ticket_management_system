@@ -2,6 +2,8 @@ from rest_framework import serializers
 
 from .models import Technicians
 class TechniciansSerializer(serializers.ModelSerializer):
+    specialization = serializers.CharField(required=True)
+    availability_status = serializers.CharField(required=True)
     class Meta:
         model = Technicians
         fields = '__all__'
@@ -13,6 +15,9 @@ class TechniciansSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password')
+
+        validated_data['is_admin'] = True
+        validated_data['is_customer'] = False
 
         technician = Technicians.objects.create(**validated_data)
         technician.set_password(password)
