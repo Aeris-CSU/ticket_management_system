@@ -1,18 +1,19 @@
+from authentication.models import Authentication
 from .models import Customers
 from .serializers import CustomersSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from technicians.permissions import isAdmin
-from customers.permissions import isAuthenticatedUser
+from technicians.permissions import isAdmin
 from rest_framework.permissions import AllowAny
-
+from authentication.models import Authentication
 
 class CustomersView(APIView):
-    permission_classes = (isAuthenticatedUser,)
+    permission_classes = (isAdmin,)
     def get(self, request):
-        Customers = Customers.objects.all()
-        serializer = CustomersSerializer(Customers, many=True)
+        customers = Authentication.objects.filter(is_customer=True)
+        serializer = CustomersSerializer(customers, many=True)
         return Response(serializer.data)
 
 class CustomersCreate(APIView):

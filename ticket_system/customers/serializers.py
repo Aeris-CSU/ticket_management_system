@@ -9,6 +9,11 @@ class CustomersSerializer(serializers.ModelSerializer):
     class Meta:
         model = Authentication
         fields = '__all__'
+        extra_kwargs = {
+            'password': {
+                'write_only': True,
+            }
+        }
 
     def create(self, validated_data):
         address_data = validated_data.pop('address')
