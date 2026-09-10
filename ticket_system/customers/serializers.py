@@ -17,7 +17,6 @@ class CustomersSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         address_data = validated_data.pop('address')
-
         user = Authentication.objects.create_user(
             username = validated_data['username'],
             password = validated_data['password'],
