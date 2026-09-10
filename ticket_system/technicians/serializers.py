@@ -1,36 +1,34 @@
 from rest_framework import serializers
 
 from .models import Technicians
+from authentication.models import Authentication
+
 class TechniciansSerializer(serializers.ModelSerializer):
-    specialization = serializers.CharField(required=True)
-    availability_status = serializers.CharField(required=True)
+    specialization = serializers.CharField(required=True, write_only=True)
+    availability_status = serializers.CharField(required=True, write_only=True)
+    contact_number = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
     class Meta:
-        model = Technicians
+        model = Authentication
         fields = '__all__'
-        extra_kwargs = {
-            'password': {
-                'write_only': True,
-            }
-        }
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
+        specialization = validated_data.pop('specialization')
+        availability_status = validated_data.pop('availability_status')
 
-        validated_data['is_admin'] = True
-        validated_data['is_customer'] = False
+        user = Authentication.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            email=validated_data.get('email', ''),
+            is_customer=False,
+            is_admin=True,
+        )
 
-        technician = Technicians.objects.create(**validated_data)
-        technician.set_password(password)
-        technician.save()
-        return technician
-
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password')
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if password:
-            instance.set_password(password)
-        instance.save()
-        return instance
+        Technicians.objects.create(
+            user=user,
+            specialization=specialization,
+            availability_status=availability_status,
+        )
+        return user

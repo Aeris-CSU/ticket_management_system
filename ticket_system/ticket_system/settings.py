@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'customers',
     'technicians',
     'tickets',
+	'authentication',
 ]
 
 MIDDLEWARE = [
@@ -91,7 +92,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-AUTH_USER_MODEL = 'technicians.Technicians'
+AUTH_USER_MODEL = 'authentication.Authentication'
 
 REST_FRAMEWORK = {
 
