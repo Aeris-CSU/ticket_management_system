@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 
 from authentication.serializers import AuthenticationSerializer
-
+from .permissions import *
 
 class Login(APIView):
     permission_classes = [AllowAny]
@@ -41,3 +41,24 @@ class Login(APIView):
             },
             status=status.HTTP_200_OK
         )
+class AdminRegister(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        serializer = AuthenticationSerializer(data=request.data)
+        if serializer.is_valid():
+            account = serializer.save()
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+class AdminList(APIView):
+    permission_classes = [AdminPermission]
+    def get(self, request):
+        accounts = Authentication.objects.filter(role=Authentication.ROLE_CHOICES.ADMIN)
+        serializer = AuthenticationSerializer(accounts, many=True)
+        return Response(serializer.data)

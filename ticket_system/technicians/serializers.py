@@ -11,6 +11,10 @@ class TechniciansSerializer(serializers.ModelSerializer):
     class Meta:
         model = Authentication
         fields = '__all__'
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'role' : {'read_only': True},
+        }
 
     def create(self, validated_data):
         specialization = validated_data.pop('specialization')
@@ -19,11 +23,10 @@ class TechniciansSerializer(serializers.ModelSerializer):
         user = Authentication.objects.create_user(
             username=validated_data['username'],
             password=validated_data['password'],
+            role = Authentication.ROLE_CHOICES.TECHNICIAN,
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             email=validated_data.get('email', ''),
-            is_customer=False,
-            is_admin=True,
         )
 
         Technicians.objects.create(
@@ -32,3 +35,11 @@ class TechniciansSerializer(serializers.ModelSerializer):
             availability_status=availability_status,
         )
         return user
+
+class TechnicianListSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source = 'user.first_name' ,read_only=True)
+    last_name = serializers.CharField(source = 'user.last_name' ,read_only=True)
+    email = serializers.CharField(source='user.email' ,read_only=True)
+    class Meta:
+        model = Technicians
+        fields = ['id', 'first_name', 'last_name', 'email', 'specialization', 'availability_status']

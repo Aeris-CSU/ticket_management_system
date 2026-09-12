@@ -5,3 +5,4 @@ class TicketsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Assignments
         fields = '__all__'
+

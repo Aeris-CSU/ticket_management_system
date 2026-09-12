@@ -7,7 +7,8 @@ from rest_framework.status import HTTP_201_CREATED
 from rest_framework.permissions import AllowAny
 
 from technicians.models import Technicians
-from technicians.serializers import TechniciansSerializer
+from technicians.serializers import TechniciansSerializer, TechnicianListSerializer
+from authentication.models import Authentication
 
 
 class TechnicianLogin(APIView):
@@ -68,6 +69,6 @@ class TechnicianView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        technicians = Technicians.objects.all()
-        serializer = TechniciansSerializer(technicians, many=True)
+        technicians = Technicians.objects.select_related('user').all()
+        serializer = TechnicianListSerializer(technicians, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

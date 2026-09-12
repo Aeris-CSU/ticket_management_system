@@ -6,11 +6,12 @@ from .serializers import TicketsSerializer
 from technicians.permissions import isAdmin
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from customers.permissions import isAuthenticatedUser
+from authentication.permissions import *
 
 
 
 class TicketsView(APIView):
-    permission_classes = [isAdmin]
+    permission_classes = [AdminPermission | TechnicianPermission]
     def get(self, request):
         tickets = Tickets.objects.all()
         serializer = TicketsSerializer(tickets, many=True)
@@ -18,7 +19,7 @@ class TicketsView(APIView):
 
 
 class TicketsCreate(APIView):
-    permission_classes = [isAuthenticatedUser]
+    permission_classes = [AdminPermission | CustomerPermission]
     def post(self, request):
         serializer = TicketsSerializer(data=request.data)
         if serializer.is_valid():

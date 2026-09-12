@@ -5,14 +5,19 @@ class AuthenticationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Authentication
         fields = '__all__'
-        extra_kwargs = {'password': {'write_only': True}}
+        extra_kwargs = {'password': {'write_only': True},
+                        'role': {'read_only': True}}
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
-        authentication = Authentication.objects.create(**validated_data)
-        authentication.password = password
-        authentication.save()
-        return authentication
+        user = Authentication.objects.create_user(
+            username = validated_data['username'],
+            password = validated_data['password'],
+            role = Authentication.ROLE_CHOICES.ADMIN,
+            first_name = validated_data.get('first_name', ''),
+            last_name = validated_data.get('last_name', ''),
+            email = validated_data.get('email', ''),
+        )
+        return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password')
