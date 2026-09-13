@@ -5,50 +5,60 @@ from authentication.models import Authentication
 
 
 class CustomersSerializer(serializers.ModelSerializer):
-    address = serializers.CharField(write_only=True)
+    username = serializers.CharField(source='user.username')
+    password = serializers.CharField(write_only=True)
+    first_name = serializers.CharField(source='user.first_name', required=False, default='')
+    last_name = serializers.CharField(source='user.last_name', required=False, default='')
+    email = serializers.EmailField(source='user.email', required=False, default='')
+
     class Meta:
-        model = Authentication
-        fields = '__all__'
-        extra_kwargs = {
-            'password': {
-                'write_only': True,
-            },
-            'role':{
-                'read_only': True,
-            }
-        }
+        model = Customers
+        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email', 'address']
 
     def create(self, validated_data):
+        user_data = validated_data.pop('user')
+        password = validated_data.pop('password')
         address_data = validated_data.pop('address')
+
         user = Authentication.objects.create_user(
-            username = validated_data['username'],
-            password = validated_data['password'],
-            role = Authentication.ROLE_CHOICES.CUSTOMER,
-            first_name = validated_data.get('first_name', ''),
-            last_name = validated_data.get('last_name', ''),
-            email = validated_data.get('email', ''),
+            username=user_data['username'],
+            password=password,
+            role=Authentication.ROLE_CHOICES.CUSTOMER,
+            first_name=user_data.get('first_name', ''),
+            last_name=user_data.get('last_name', ''),
+            email=user_data.get('email', ''),
         )
 
-        Customers.objects.create(
-            user = user,
-            address = address_data,
+        customer = Customers.objects.create(
+            user=user,
+            address=address_data,
         )
-        return user
+        return customer
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+        user = instance.user
+
+        password = validated_data.pop('password', None)
+        if password:
+            user.set_password(password)
+
+        for attr, value in user_data.items():
+            setattr(user, attr, value)
+        user.save()
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
 
 class CustomerListSerializer(serializers.ModelSerializer):
-    first_name = serializers.CharField(source = 'user.first_name',read_only=True)
-    last_name = serializers.CharField(source = 'user.last_name',read_only=True)
-    email = serializers.CharField(source='user.email',read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
 
     class Meta:
         model = Customers
         fields = ['id', 'first_name', 'last_name', 'email', 'address']
-
-
-
-
-
-
-
-
-
