@@ -6,4 +6,5 @@ urlpatterns = [
     path('register-customers/', CustomersCreate.as_view()),
     path('customers/update/<int:pk>/', CustomersUpdate.as_view()),
     path('customers/delete/<int:pk>/', CustomersDelete.as_view()),
+    path('customers/<int:pk>/', CustomersDetail.as_view()),
 ]

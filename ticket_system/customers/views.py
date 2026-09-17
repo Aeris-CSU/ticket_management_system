@@ -1,3 +1,5 @@
+from django.db.migrations import serializer
+
 from authentication.models import Authentication
 from .models import Customers
 from .serializers import CustomersSerializer, CustomerListSerializer
@@ -50,3 +52,53 @@ class CustomersCreate(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CustomersDetail(APIView):
+    permission_classes = [AdminPermission | CustomerPermission | TechnicianPermission]
+
+    def get(self, request, pk):
+        try:
+            customer = Customers.objects.get(pk=pk)
+        except Customers.DoesNotExist:
+            return Response(
+                data = {"message" : "Customer does not exist"},
+                status = status.HTTP_404_NOT_FOUND
+            )
+
+        if request.user.role == "Customer":
+            self.check_object_permissions(request, customer)
+        serializer = CustomersSerializer(customer)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        try:
+            customer = Customers.objects.get(pk=pk)
+        except Customers.DoesNotExist:
+            return Response(
+                data = {"message" : "Customer does not exist"},
+                status = status.HTTP_404_NOT_FOUND
+            )
+        self.check_object_permissions(request, customer)
+        serializer = CustomersSerializer(customer, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            customer = Customers.objects.get(pk=pk)
+        except Customers.DoesNotExist:
+            return Response(
+                data = {"message" : "Customer does not exist"},
+                status = status.HTTP_404_NOT_FOUND
+            )
+        self.check_object_permissions(request, customer)
+        customer.delete()
+        return Response(
+            data = {"message" : "Customer deleted"},
+            status = status.HTTP_204_NO_CONTENT
+        )

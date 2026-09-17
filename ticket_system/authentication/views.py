@@ -62,3 +62,10 @@ class AdminList(APIView):
         accounts = Authentication.objects.filter(role=Authentication.ROLE_CHOICES.ADMIN)
         serializer = AuthenticationSerializer(accounts, many=True)
         return Response(serializer.data)
+
+class AccountList(APIView):
+    permission_classes = [AdminPermission]
+    def get(self, request):
+        accounts = Authentication.objects.all()
+        serializer = AuthenticationSerializer(accounts, many=True)
+        return Response(serializer.data)

@@ -45,3 +45,43 @@ class TicketsDelete(APIView):
         ticket = Tickets.objects.get(id=pk)
         ticket.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class TicketsDetail(APIView):
+    permission_classes = [AdminPermission | TechnicianPermission]
+    def get(self, request, pk):
+        try:
+            ticket = Tickets.objects.get(pk=pk)
+        except Tickets.DoesNotExist:
+            return Response(
+                data = {"message" : "Ticket does not exist"},
+                status = status.HTTP_404_NOT_FOUND
+            )
+        serializer = TicketsSerializer(ticket)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        try:
+            ticket = Tickets.objects.get(pk=pk)
+        except Tickets.DoesNotExist:
+            return Response(
+                data = {"message" : "Ticket does not exist"},
+                status = status.HTTP_404_NOT_FOUND
+            )
+        serializer = TicketsSerializer(ticket, data=request.data, partial= True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+    def delete(self, request, pk):
+        try:
+            ticket = Tickets.objects.get(pk=pk)
+        except Tickets.DoesNotExist:
+            return Response(
+                data = {"message" : "Ticket does not exist"},
+                status = status.HTTP_404_NOT_FOUND
+            )
+        serializer = TicketsSerializer(ticket)
+        return Response(
+            data = {"message" : "Ticket successfully deleted"},
+            status = status.HTTP_204_NO_CONTENT
+        )

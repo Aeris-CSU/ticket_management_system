@@ -6,5 +6,6 @@ urlpatterns = [
     path('assignments/create/', AssignmentCreateView.as_view()),
     path('assignments/update/<int:pk>/', AssignmentUpdate.as_view()),
     path('assignments/delete/<int:pk>/', AssignmentDelete.as_view()),
+    path('assignments/<int:pk>', AssignmentsDetail.as_view()),
 
 ]

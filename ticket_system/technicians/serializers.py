@@ -29,12 +29,11 @@ class TechniciansSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         specialization = validated_data.pop('specialization')
         availability_status = validated_data.pop('availability_status')
-        contact_number = validated_data.pop('contact_number', '')
 
         user = Authentication.objects.create_user(
             username=user_data['username'],
             password=password,
-            role=Authentication.ROLE_CHOICES.TECHNICIAN,
+            role= 'Technician',
             first_name=user_data.get('first_name', ''),
             last_name=user_data.get('last_name', ''),
             email=user_data.get('email', ''),
@@ -44,7 +43,6 @@ class TechniciansSerializer(serializers.ModelSerializer):
             user=user,
             specialization=specialization,
             availability_status=availability_status,
-            contact_number=contact_number,
         )
         return technician
 
@@ -74,4 +72,4 @@ class TechnicianListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Technicians
-        fields = ['id', 'first_name', 'last_name', 'email', 'specialization', 'availability_status', 'contact_number']
+        fields = ['id', 'first_name', 'last_name', 'email', 'specialization', 'availability_status']
