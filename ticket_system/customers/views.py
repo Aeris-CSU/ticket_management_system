@@ -57,15 +57,8 @@ class CustomersDetail(APIView):
     permission_classes = [AdminPermission | CustomerPermission | TechnicianPermission]
 
     def get(self, request, pk):
-        try:
-            customer = Customers.objects.get(pk=pk)
-        except Customers.DoesNotExist:
-            return Response(
-                data = {"message" : "Customer does not exist"},
-                status = status.HTTP_404_NOT_FOUND
-            )
-
-        if request.user.role == "Customer":
+        customer = get_object_or_404(Customers, pk=pk)
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
             self.check_object_permissions(request, customer)
         serializer = CustomersSerializer(customer)
         return Response(serializer.data)
