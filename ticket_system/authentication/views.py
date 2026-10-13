@@ -3,10 +3,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from authentication.serializers import AuthenticationSerializer
-from .permissions import *
+from .models import Authentication
+from .permissions import AdminPermission
 
 class Login(APIView):
     permission_classes = [AllowAny]
@@ -64,8 +65,12 @@ class AdminList(APIView):
         return Response(serializer.data)
 
 class AccountList(APIView):
-    permission_classes = [AdminPermission]
+    permission_classes = [IsAuthenticated]
     def get(self, request):
-        accounts = Authentication.objects.all()
-        serializer = AuthenticationSerializer(accounts, many=True)
+        if request.user.role == Authentication.ROLE_CHOICES.ADMIN:
+            accounts = Authentication.objects.all().order_by('id')
+            serializer = AuthenticationSerializer(accounts, many=True)
+            return Response(serializer.data)
+
+        serializer = AuthenticationSerializer(request.user)
         return Response(serializer.data)

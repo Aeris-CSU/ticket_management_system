@@ -1,15 +1,11 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.status import HTTP_201_CREATED
 from rest_framework.permissions import AllowAny
 
 from technicians.models import Technicians
 from technicians.serializers import TechniciansSerializer, TechnicianListSerializer
-from authentication.models import Authentication
-from authentication.permissions import *
+from authentication.permissions import AdminPermission, TechnicianPermission
 from django.shortcuts import get_object_or_404
 
 
@@ -25,10 +21,13 @@ class TechnicianRegister(APIView):
 
 
 class TechnicianView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AdminPermission | TechnicianPermission]
 
     def get(self, request):
-        technicians = Technicians.objects.select_related('user').all()
+        if request.user.role == 'ADMIN':
+            technicians = Technicians.objects.select_related('user').all().order_by('id')
+        else:
+            technicians = Technicians.objects.select_related('user').filter(user=request.user)
         serializer = TechnicianListSerializer(technicians, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -61,7 +60,7 @@ class TechnicianDetail(APIView):
     permission_classes = [AdminPermission]
     def get_object(self, pk):
         try:
-            return Technician.objects.get(pk=pk)
+            return Technicians.objects.get(pk=pk)
         except Technicians.DoesNotExist:
             return None
 

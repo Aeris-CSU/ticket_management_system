@@ -3,16 +3,40 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import AssignmentsSerializer
 from .models import Assignments
-from rest_framework.permissions import AllowAny
-from authentication.permissions import *
+from authentication.models import Authentication
+from authentication.permissions import AdminPermission, CustomerPermission, TechnicianPermission
 from django.shortcuts import get_object_or_404
 
 class AssignmentsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
+
+    def get_queryset(self, request):
+        queryset = Assignments.objects.select_related(
+            'tickets__customer__user',
+            'technicians__user',
+        )
+        if request.user.role == Authentication.ROLE_CHOICES.TECHNICIAN:
+            queryset = queryset.filter(technicians__user=request.user)
+        elif request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            queryset = queryset.filter(tickets__customer__user=request.user)
+        return queryset.order_by('-assigned_at')
+
     def get(self, request):
-        tickets = Assignments.objects.all()
-        serializer = AssignmentsSerializer(tickets, many=True)
+        assignments = self.get_queryset(request)
+        serializer = AssignmentsSerializer(assignments, many=True)
         return Response(serializer.data)
+
+    def post(self, request):
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            return Response(
+                {'detail': 'Customers cannot assign tickets.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = AssignmentsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class AssignmentCreateView(APIView):
     permission_classes = [AdminPermission | TechnicianPermission]
@@ -20,14 +44,15 @@ class AssignmentCreateView(APIView):
         serializer = AssignmentsSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class AssignmentUpdate(APIView):
     permission_classes = [AdminPermission | TechnicianPermission]
     def put(self, request, pk):
-        assign = Assignments.objects.get(pk=pk)
-        serializer = AssignmentsSerializer(assign, data=request.data)
+        assign = get_object_or_404(Assignments, pk=pk)
+        self.check_object_permissions(request, assign)
+        serializer = AssignmentsSerializer(assign, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -35,9 +60,9 @@ class AssignmentUpdate(APIView):
 
 
 class AssignmentDelete(APIView):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [AdminPermission]
     def delete(self, request, pk):
-        assign = Assignments.objects.get(pk=pk)
+        assign = get_object_or_404(Assignments, pk=pk)
         assign.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -56,6 +81,11 @@ class AssignmentsDetail(APIView):
         return Response(serializer.data)
 
     def put(self, request, pk):
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            return Response(
+                {'detail': 'Customers cannot update assignments.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         try:
             assignment = Assignments.objects.get(pk=pk)
         except Assignments.DoesNotExist:
@@ -71,6 +101,11 @@ class AssignmentsDetail(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        if request.user.role != Authentication.ROLE_CHOICES.ADMIN:
+            return Response(
+                {'detail': 'Only administrators can delete assignments.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         try:
             assignment = Assignments.objects.get(pk=pk)
         except Assignments.DoesNotExist:

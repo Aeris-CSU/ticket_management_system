@@ -1,22 +1,33 @@
-from django.db.migrations import serializer
-
-from authentication.models import Authentication
 from .models import Customers
 from .serializers import CustomersSerializer, CustomerListSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
 from authentication.models import Authentication
-from authentication.permissions import *
+from authentication.permissions import AdminPermission, CustomerPermission, TechnicianPermission
 from django.shortcuts import get_object_or_404
 
 class CustomersView(APIView):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
     def get(self, request):
-        customers = Customers.objects.select_related('user').all()
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            customers = Customers.objects.select_related('user').filter(user=request.user)
+        else:
+            customers = Customers.objects.select_related('user').all().order_by('id')
         serializer = CustomerListSerializer(customers, many=True)
         return Response(serializer.data)
+
+    def post(self, request):
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            return Response(
+                {'detail': 'Customers cannot create other customer accounts.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = CustomersSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CustomersUpdate(APIView):
@@ -45,12 +56,12 @@ class CustomersDelete(APIView):
 
 
 class CustomersCreate(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = [AdminPermission | TechnicianPermission]
     def post(self, request):
         serializer = CustomersSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomersDetail(APIView):
@@ -65,7 +76,7 @@ class CustomersDetail(APIView):
                 status = status.HTTP_404_NOT_FOUND
             )
 
-        if request.user.role == "Customer":
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
             self.check_object_permissions(request, customer)
         serializer = CustomersSerializer(customer)
         return Response(serializer.data)
