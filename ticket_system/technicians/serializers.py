@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 
 from .models import Technicians
 from authentication.models import Authentication
@@ -10,6 +12,11 @@ class TechniciansSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', required=False, default='')
     last_name = serializers.CharField(source='user.last_name', required=False, default='')
     email = serializers.EmailField(source='user.email', required=False, default='')
+    availability_status = serializers.ChoiceField(
+        choices=Technicians.Availability.choices,
+        required=False,
+        default=Technicians.Availability.AVAILABLE,
+    )
 
     class Meta:
         model = Technicians
@@ -24,6 +31,7 @@ class TechniciansSerializer(serializers.ModelSerializer):
             'availability_status',
         ]
 
+    @transaction.atomic
     def create(self, validated_data):
         user_data = validated_data.pop('user')
         password = validated_data.pop('password', None)
@@ -75,6 +83,11 @@ class TechniciansSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'username': 'A user with that username already exists.'})
         if not self.instance and not attrs.get('password'):
             raise serializers.ValidationError({'password': 'This field is required.'})
+        if attrs.get('password'):
+            try:
+                validate_password(attrs['password'], self.instance.user if self.instance else None)
+            except Exception as exc:
+                raise serializers.ValidationError({'password': list(exc.messages)}) from exc
         return attrs
 
 

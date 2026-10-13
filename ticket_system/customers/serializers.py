@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 
 from .models import Customers
 from authentication.models import Authentication
@@ -15,6 +17,7 @@ class CustomersSerializer(serializers.ModelSerializer):
         model = Customers
         fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email', 'address']
 
+    @transaction.atomic
     def create(self, validated_data):
         user_data = validated_data.pop('user')
         password = validated_data.pop('password', None)
@@ -64,6 +67,12 @@ class CustomersSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'username': 'A user with that username already exists.'})
         if not self.instance and not attrs.get('password'):
             raise serializers.ValidationError({'password': 'This field is required.'})
+        password = attrs.get('password')
+        if password:
+            try:
+                validate_password(password, self.instance.user if self.instance else None)
+            except Exception as exc:
+                raise serializers.ValidationError({'password': list(exc.messages)}) from exc
         return attrs
 
 

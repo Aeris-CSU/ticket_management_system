@@ -4,9 +4,13 @@ from django.conf import settings
 
 # Create your models here.
 class Technicians(models.Model):
+    class Availability(models.TextChoices):
+        AVAILABLE = 'AVAILABLE', 'Available'
+        UNAVAILABLE = 'UNAVAILABLE', 'Unavailable'
+
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     specialization = models.CharField(max_length=100)
-    availability_status = models.CharField(max_length=100)
+    availability_status = models.CharField(max_length=100, choices=Availability.choices, default=Availability.AVAILABLE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
   # All fields

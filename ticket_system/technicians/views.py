@@ -1,7 +1,6 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
 
 from technicians.models import Technicians
 from technicians.serializers import TechniciansSerializer, TechnicianListSerializer
@@ -10,7 +9,7 @@ from django.shortcuts import get_object_or_404
 
 
 class TechnicianRegister(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AdminPermission]
 
     def post(self, request):
         serializer = TechniciansSerializer(data=request.data)
@@ -53,6 +52,8 @@ class TechnicianDelete(APIView):
     def delete(self, request, pk):
         tech = get_object_or_404(Technicians, pk=pk)
         self.check_object_permissions(request, tech)
+        if tech.assignments_set.exists():
+            return Response({'detail': 'Technicians with assignment history cannot be deleted. Mark the technician unavailable instead.'}, status=status.HTTP_409_CONFLICT)
         tech.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -68,7 +69,7 @@ class TechnicianDetail(APIView):
         tech = self.get_object(pk)
         if tech is None:
             return Response(
-                data = {"message" : "Technician does not exist"},
+                data = {"detail" : "Technician does not exist."},
                 status = status.HTTP_404_NOT_FOUND,
             )
         serializer = TechniciansSerializer(tech)
@@ -78,7 +79,7 @@ class TechnicianDetail(APIView):
         tech = self.get_object(pk)
         if tech is None:
             return Response(
-                data = {"message" : "Technician does not exist"},
+                data = {"detail" : "Technician does not exist."},
                 status = status.HTTP_404_NOT_FOUND,
             )
         serializer = TechniciansSerializer(tech, data=request.data, partial = True)
@@ -94,9 +95,11 @@ class TechnicianDetail(APIView):
         tech = self.get_object(pk)
         if tech is None:
             return Response(
-                data = {"message" : "Technician does not exist"},
+                data = {"detail" : "Technician does not exist."},
                 status = status.HTTP_404_NOT_FOUND,
             )
+        if tech.assignments_set.exists():
+            return Response({'detail': 'Technicians with assignment history cannot be deleted. Mark the technician unavailable instead.'}, status=status.HTTP_409_CONFLICT)
         tech.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

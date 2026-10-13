@@ -1,14 +1,30 @@
 from datetime import timedelta
+import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-_^6j!i-x4e@80=x7rfi%ihx43*xmz3gchf*_v@aw-$0_vu!-pb'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() == 'true'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+	if not DEBUG:
+		raise ImproperlyConfigured('Set DJANGO_SECRET_KEY when DEBUG is disabled.')
+	SECRET_KEY = 'development-only-change-me-before-deployment'
 
-DEBUG = True
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
-ALLOWED_HOSTS = []
+CORS_ALLOWED_ORIGINS = [
+	origin.strip()
+	for origin in os.environ.get(
+		'CORS_ALLOWED_ORIGINS',
+		'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174',
+	).split(',')
+	if origin.strip()
+]
+
+CORS_ALLOW_CREDENTIALS = False
 
 INSTALLED_APPS = [
 	'django.contrib.admin',
@@ -28,6 +44,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
 	'django.middleware.security.SecurityMiddleware',
+	'ticket_system.cors.CorsMiddleware',
 	'django.contrib.sessions.middleware.SessionMiddleware',
 	'django.middleware.common.CommonMiddleware',
 	'django.middleware.csrf.CsrfViewMiddleware',
@@ -55,15 +72,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ticket_system.wsgi.application'
 
-# pip install psycopg2
 DATABASES = {
 	'default': {
 		'ENGINE': 'django.db.backends.postgresql',
-		'NAME': 'ticket_system',
-		'USER': 'postgres',
-		'PASSWORD': '1234',
-		'HOST': 'localhost',
-		'PORT': '8080'
+		'NAME': os.environ.get('DB_NAME', 'ticket_system'),
+		'USER': os.environ.get('DB_USER', 'postgres'),
+		'PASSWORD': os.environ.get('DB_PASSWORD', 'Baccaymoy123005'),
+		'HOST': os.environ.get('DB_HOST', 'localhost'),
+		'PORT': os.environ.get('DB_PORT', '5432'),
 	}
 }
 

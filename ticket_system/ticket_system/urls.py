@@ -18,9 +18,11 @@ from django.contrib import admin
 from django.urls import path
 from django.urls import include
 from authentication.views import Login
+from customers.views import CustomersCreate
 
 urlpatterns = [
     path('api/login/', Login.as_view()),
+    path('api/register/', CustomersCreate.as_view()),
     path('api/', include('technicians.urls')),
     path('api/', include('assignments.urls')),
     path('api/', include('customers.urls')),
