@@ -1,19 +1,14 @@
 from datetime import timedelta
 import os
 from pathlib import Path
-from django.core.exceptions import ImproperlyConfigured
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() == 'true'
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
-if not SECRET_KEY:
-	if not DEBUG:
-		raise ImproperlyConfigured('Set DJANGO_SECRET_KEY when DEBUG is disabled.')
-	SECRET_KEY = 'development-only-change-me-before-deployment'
-
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
+# Local development settings shared by the team.
+DEBUG = True
+SECRET_KEY = 'ticket-system-local-development-secret-key'
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 
 CORS_ALLOWED_ORIGINS = [
 	origin.strip()

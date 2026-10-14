@@ -60,14 +60,13 @@ psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE ticket_sys
 
 If the database already exists, skip its creation. Django's migrations create the tables in the next steps; do not manually create the tables.
 
-### 5. Configure the backend in the same PowerShell terminal
+### 5. Configure your local database in the same PowerShell terminal
+
+Debug mode, a development secret key, and localhost hosts are already configured in `ticket_system/ticket_system/settings.py`. You do not need to set `DJANGO_DEBUG`, `DJANGO_SECRET_KEY`, or `DJANGO_ALLOWED_HOSTS` before starting the server.
 
 Replace `YOUR_POSTGRES_PASSWORD` with the password you set during PostgreSQL installation:
 
 ```powershell
-$env:DJANGO_DEBUG = 'true'
-$env:DJANGO_SECRET_KEY = (python -c 'import secrets; print(secrets.token_urlsafe(50))')
-$env:DJANGO_ALLOWED_HOSTS = 'localhost,127.0.0.1,testserver'
 $env:DB_NAME = 'ticket_system'
 $env:DB_USER = 'postgres'
 $env:DB_PASSWORD = 'YOUR_POSTGRES_PASSWORD'
@@ -75,7 +74,7 @@ $env:DB_HOST = 'localhost'
 $env:DB_PORT = '5432'
 ```
 
-These values apply to the current terminal session. Repeat this step when opening a new terminal. Keep the same secret key if you want previously issued login tokens to remain valid across restarts. The current backend reads environment variables directly; creating a `.env` file alone does not load them.
+These database values apply to the current terminal session. Repeat this step when opening a new terminal if your database credentials differ from the defaults in settings. The current backend reads database environment variables directly; creating a `.env` file alone does not load them.
 
 ### 6. Apply the committed migrations
 
@@ -147,7 +146,6 @@ You do not need to recreate the database or administrator each time. After pulli
 | Error or symptom | What to check |
 | --- | --- |
 | `No module named django` | Activate `.venv` and install `requirements.txt` using that environment's Python. |
-| `Set DJANGO_SECRET_KEY when DEBUG is disabled` | Set the variables in step 5 in the same terminal running Django. |
 | PostgreSQL password authentication failed | Set `DB_PASSWORD` to your own local PostgreSQL password. |
 | Database `ticket_system` does not exist | Create the database in step 4. |
 | Connection refused on port 5432 | Start the PostgreSQL service and check `DB_HOST` and `DB_PORT`. |
