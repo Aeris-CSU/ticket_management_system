@@ -1,5 +1,3 @@
-[Supersuser kasi ginawa ko sa admin]
-
 ## Running the backend after cloning (Windows / PowerShell)
 
 Each teammate needs their own Python environment, PostgreSQL database, and local configuration. Cloning the repository does not copy the database or your installed packages.
@@ -60,21 +58,25 @@ psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE ticket_sys
 
 If the database already exists, skip its creation. Django's migrations create the tables in the next steps; do not manually create the tables.
 
-### 5. Configure your local database in the same PowerShell terminal
+### 5. Set your PostgreSQL password
 
 Debug mode, a development secret key, and localhost hosts are already configured in `ticket_system/ticket_system/settings.py`. You do not need to set `DJANGO_DEBUG`, `DJANGO_SECRET_KEY`, or `DJANGO_ALLOWED_HOSTS` before starting the server.
 
 Replace `YOUR_POSTGRES_PASSWORD` with the password you set during PostgreSQL installation:
 
 ```powershell
-$env:DB_NAME = 'ticket_system'
-$env:DB_USER = 'postgres'
 $env:DB_PASSWORD = 'YOUR_POSTGRES_PASSWORD'
-$env:DB_HOST = 'localhost'
-$env:DB_PORT = '5432'
 ```
 
-These database values apply to the current terminal session. Repeat this step when opening a new terminal if your database credentials differ from the defaults in settings. The current backend reads database environment variables directly; creating a `.env` file alone does not load them.
+The database defaults are already `ticket_system`, user `postgres`, host `localhost`, and port `5432`. The password command applies only to the current terminal, so run it again when opening a new terminal. A `.env` file is not automatically loaded by this backend.
+
+If you used a different database name, username, or port, also set the corresponding variable before running Django:
+
+```powershell
+$env:DB_NAME = 'your_database_name'
+$env:DB_USER = 'your_postgres_username'
+$env:DB_PORT = 'your_postgres_port'
+```
 
 ### 6. Apply the committed migrations
 
@@ -92,6 +94,8 @@ Applied migrations should have `[X]` beside them. A fresh clone uses the migrati
 ### 7. Create the first administrator
 
 Create a local superuser and follow the username, email, and password prompts:
+
+Your existing administrator is stored in your own database. Cloning the repository does not copy that account, so each teammate must create an administrator in their local database. If you already have a local superuser, skip its creation and set its role using the next command.
 
 ```powershell
 python manage.py createsuperuser --username admin
@@ -133,13 +137,15 @@ From the repository root:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-# Set the environment variables from step 5 in this terminal again.
+$env:DB_PASSWORD = 'YOUR_POSTGRES_PASSWORD'
 cd ticket_system
 python manage.py migrate
 python manage.py runserver
 ```
 
 You do not need to recreate the database or administrator each time. After pulling changes to `requirements.txt`, run `python -m pip install -r requirements.txt` from the repository root again.
+
+If you changed the database name, username, or port in step 5, set those variables again in the new terminal too.
 
 ### Common setup errors
 
