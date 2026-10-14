@@ -280,7 +280,7 @@ svg {
 .hero-description {
   max-width: 480px;
   margin: 22px 0 0;
-  color: #64748b;
+  color: black;
   font-size: 17px;
   line-height: 1.75;
 }
@@ -863,7 +863,7 @@ svg {
 }
 
 .feature-number {
-  color: #cbd5e1;
+  color: grey;
   font-family: var(--font-heading);
   font-size: 12px;
   font-weight: 800;
@@ -1066,7 +1066,7 @@ svg {
 .about-copy > p {
   max-width: 555px;
   margin: 17px 0 0;
-  color: var(--muted);
+  color: dimgray;
   font-size: 14px;
   line-height: 1.8;
 }

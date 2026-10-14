@@ -1,19 +1,19 @@
 <script setup lang="ts">
 const features = [
   {
-    number: '01',
+    number: '1',
     title: 'Easy Ticket Submission',
     description: 'Create and submit support tickets quickly with a simple and organized process.',
     icon: 'ticket',
   },
   {
-    number: '02',
+    number: '2',
     title: 'Ticket Progress Tracking',
     description: 'Monitor the progress of your support requests from submission to resolution.',
     icon: 'progress',
   },
   {
-    number: '03',
+    number: '3',
     title: 'Organized Ticket Assignment',
     description: 'Keep support requests organized by assigning tickets to the right technicians.',
     icon: 'team',
