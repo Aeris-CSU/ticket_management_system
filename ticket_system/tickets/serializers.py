@@ -7,11 +7,13 @@ from .models import Tickets
 
 class TicketsSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField(read_only=True)
+    customer_address = serializers.CharField(source='address', read_only=True)
+    address = serializers.CharField(max_length=100, required=False)
     customer = serializers.PrimaryKeyRelatedField(queryset=Customers.objects.select_related('user').all(), required=False)
 
     class Meta:
         model = Tickets
-        fields = ['id', 'problem_title', 'problem_description', 'status', 'customer', 'customer_name', 'created_at', 'updated_at']
+        fields = ['id', 'problem_title', 'problem_description', 'contact_number', 'address', 'status', 'customer', 'customer_name', 'customer_address', 'created_at', 'updated_at']
         read_only_fields = ['id', 'status', 'customer_name', 'created_at', 'updated_at']
 
     def get_customer_name(self, obj):
@@ -42,6 +44,9 @@ class TicketsSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        customer = validated_data['customer']
+        validated_data.setdefault('address', customer.address)
+        validated_data.setdefault('contact_number', customer.contact_number)
         validated_data['status'] = Tickets.Status.OPEN
         return super().create(validated_data)
 

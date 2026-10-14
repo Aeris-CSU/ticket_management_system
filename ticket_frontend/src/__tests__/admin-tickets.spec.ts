@@ -8,8 +8,8 @@ import { useAuthStore } from '@/stores/auth'
 import type { Assignment, Technician } from '@/types/admin'
 import type { Ticket } from '@/types/ticket'
 
-const ticketApi = vi.hoisted(() => ({ listTickets: vi.fn(), getTicket: vi.fn() }))
-const assignmentApi = vi.hoisted(() => ({ listAssignments: vi.fn(), createAssignment: vi.fn(), reassignTechnician: vi.fn() }))
+const ticketApi = vi.hoisted(() => ({ listTickets: vi.fn(), getTicket: vi.fn(), updateTicket: vi.fn(), updateTicketStatus: vi.fn() }))
+const assignmentApi = vi.hoisted(() => ({ listAssignments: vi.fn(), createAssignment: vi.fn(), reassignTechnician: vi.fn(), unassignTechnician: vi.fn() }))
 const directoryApi = vi.hoisted(() => ({ listCustomers: vi.fn(), listTechnicians: vi.fn(), createTechnician: vi.fn() }))
 
 vi.mock('@/services/tickets', () => ticketApi)
@@ -17,8 +17,8 @@ vi.mock('@/services/assignments', () => assignmentApi)
 vi.mock('@/services/directories', () => directoryApi)
 
 const mounted: VueWrapper[] = []
-const mountRouter = () => {
-  const wrapper = mount(RouterView, { global: { plugins: [pinia, router] } })
+const mountRouter = (inlineTeleport = false) => {
+  const wrapper = mount(RouterView, { global: { plugins: [pinia, router], stubs: inlineTeleport ? { Teleport: true } : {} } })
   mounted.push(wrapper)
   return wrapper
 }
@@ -38,6 +38,8 @@ const assignmentRecord: Assignment = {
 
 describe('administrator ticket management', () => {
   beforeEach(async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', '') } })
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.removeAttribute('open') } })
     vi.clearAllMocks()
     ticketApi.listTickets.mockResolvedValue(ticketRecords)
     ticketApi.getTicket.mockImplementation(async (id: string) => ticketRecords.find((ticket) => String(ticket.id) === id)!)
@@ -66,7 +68,7 @@ describe('administrator ticket management', () => {
     expect(wrapper.get('.dashboard-stat-grid').text()).toContain('Total Tickets')
     expect(wrapper.findAll('.dashboard-stat-card strong').map((item) => item.text())).toEqual(['2', '1', '1', '0'])
     expect(wrapper.get('.dashboard-recent').text()).toContain('Casey Rivera')
-    expect(wrapper.get('.dashboard-create-row').text()).toContain('Assignments')
+    expect(wrapper.find('.dashboard-create-row').exists()).toBe(false)
   })
 
   it('lists and filters all tickets, including customer names', async () => {
@@ -74,12 +76,221 @@ describe('administrator ticket management', () => {
     await router.push('/admin/tickets')
     await flushPromises()
 
-    expect(wrapper.get('h2#tickets-heading').text()).toBe('All Tickets')
+    expect(wrapper.get('h2#tickets-heading').text()).toBe('All Support Tickets')
     expect(wrapper.get('.ticket-table-wrap').text()).toContain('Casey Rivera')
     expect(wrapper.get('.ticket-table-wrap').text()).toContain('Morgan Lee')
     await wrapper.get('input[type="search"]').setValue('printer')
     expect(wrapper.get('.ticket-table-wrap').text()).toContain('Printer is jammed')
     expect(wrapper.get('.ticket-table-wrap').text()).not.toContain('Cannot connect to Wi-Fi')
+  })
+
+  it('counts backend statuses accurately and refreshes the active queue', async () => {
+    const completed = { ...ticketRecords[0]!, id: 52, status: 'RESOLVED' as const }
+    const cancelled = { ...ticketRecords[0]!, id: 53, status: 'CANCELLED' as const }
+    const assigned = { ...ticketRecords[0]!, id: 54, status: 'ASSIGNED' as const }
+    ticketApi.listTickets.mockResolvedValueOnce([...ticketRecords, completed, cancelled, assigned])
+    const wrapper = mountRouter()
+    await router.push('/admin')
+    await flushPromises()
+    expect(wrapper.findAll('.dashboard-stat-card strong').map((item) => item.text())).toEqual(['5', '1', '2', '1'])
+    expect(wrapper.text()).toContain('Assigned or currently being handled.')
+    expect(wrapper.findAll('.queue-table tbody tr')).toHaveLength(3)
+    ticketApi.listTickets.mockResolvedValueOnce([completed, cancelled])
+    await wrapper.get('.dashboard-page-intro button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.queue-table').exists()).toBe(false)
+    expect(wrapper.text()).toContain('No active support requests')
+  })
+
+  it('keeps resolved and cancelled tickets searchable and supports oldest-first sorting', async () => {
+    ticketApi.listTickets.mockResolvedValueOnce([
+      ticketRecords[0], ticketRecords[1],
+      { ...ticketRecords[0], id: 60, status: 'RESOLVED', problem_title: 'Completed issue' },
+      { ...ticketRecords[0], id: 61, status: 'CANCELLED', problem_title: 'Cancelled issue' },
+    ])
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets')
+    await flushPromises()
+    expect(wrapper.get('.ticket-table-wrap').text()).toContain('Completed issue')
+    expect(wrapper.get('.ticket-table-wrap').text()).toContain('Cancelled issue')
+    await wrapper.findAll('.ticket-filters select')[1]!.setValue('oldest')
+    expect(wrapper.findAll('.ticket-table tbody tr')[0]!.text()).toContain('#50')
+    await wrapper.get('input[type="search"]').setValue('Morgan')
+    expect(wrapper.findAll('.ticket-table tbody tr')).toHaveLength(1)
+  })
+
+
+  it('shows a customer address and their ticket links in directory details', async () => {
+    directoryApi.listCustomers.mockResolvedValueOnce([{ id: 4, username: 'casey', first_name: 'Casey', last_name: 'Rivera', email: 'casey@example.test', role: 'CUSTOMER', address: 'Main Street' }])
+    const wrapper = mountRouter()
+    await router.push('/admin/customers')
+    await flushPromises()
+    await wrapper.get('.directory-table button').trigger('click')
+    const popup = document.querySelector('.directory-details-modal')!
+    expect(popup.textContent).toContain('Main Street')
+    expect(popup.textContent).toContain('Cannot connect to Wi-Fi')
+    expect(popup.textContent).not.toContain('Printer is jammed')
+    expect(router.currentRoute.value.path).toBe('/admin/customers')
+    popup.dispatchEvent(new Event('cancel', { cancelable: true }))
+    await flushPromises()
+    expect(document.querySelector('.directory-details-modal')).toBeNull()
+  })
+
+  it('searches customers by contact details and clears an empty search result', async () => {
+    directoryApi.listCustomers.mockResolvedValueOnce([
+      { id: 4, username: 'casey', first_name: 'Casey', last_name: 'Rivera', email: 'casey@example.test', role: 'CUSTOMER', address: 'Main Street', contact_number: '09171234567' },
+      { id: 5, username: 'morgan', first_name: 'Morgan', last_name: 'Lee', email: 'morgan@example.test', role: 'CUSTOMER', address: 'Campus', contact_number: '' },
+    ])
+    const wrapper = mountRouter()
+    await router.push('/admin/customers')
+    await flushPromises()
+    await wrapper.get('#customer-search').setValue('09171234567')
+    expect(wrapper.findAll('.directory-table tbody tr')).toHaveLength(1)
+    expect(wrapper.get('.directory-table').text()).toContain('Casey Rivera')
+    expect(wrapper.get('.directory-table').text()).not.toContain('@casey')
+    await wrapper.get('#customer-search').setValue('campus')
+    expect(wrapper.get('.directory-table').text()).toContain('Morgan Lee')
+    await wrapper.get('#customer-search').setValue('unknown customer')
+    expect(wrapper.text()).toContain('No matching customers')
+    await wrapper.get('.ticket-empty-state button').trigger('click')
+    expect(wrapper.findAll('.directory-table tbody tr')).toHaveLength(2)
+  })
+
+  it.each(['/admin', '/admin/tickets'])('opens ticket details in a popup from %s without navigating', async (path) => {
+    const wrapper = mountRouter()
+    await router.push(path)
+    await flushPromises()
+    await wrapper.get(path === '/admin' ? '.queue-table button' : '.ticket-table button').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe(path)
+    const popup = document.querySelector('dialog')!
+    expect(popup.hasAttribute('open')).toBe(true)
+    expect(popup.textContent).toContain('Ticket Details')
+    expect(document.body.style.overflow).toBe('hidden')
+    popup.dispatchEvent(new Event('cancel', { cancelable: true }))
+    await flushPromises()
+    expect(document.querySelector('dialog')).toBeNull()
+    expect(document.body.style.overflow).not.toBe('hidden')
+  })
+
+  it('saves ticket edits inside the popup and updates the list behind it', async () => {
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets')
+    await flushPromises()
+    ticketApi.updateTicket.mockResolvedValueOnce({ ...ticketRecords[0]!, problem_title: 'Updated from popup' })
+    await wrapper.get('.ticket-table button').trigger('click')
+    await flushPromises()
+    const popup = document.querySelector('dialog')!
+    ;(popup.querySelector('.ticket-edit-button') as HTMLButtonElement).click()
+    await flushPromises()
+    const input = popup.querySelector('#edit-ticket-title') as HTMLInputElement
+    input.value = 'Updated from popup'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    popup.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(ticketApi.updateTicket).toHaveBeenCalledWith('51', expect.objectContaining({ problem_title: 'Updated from popup' }))
+    expect(wrapper.get('.ticket-table').text()).toContain('Updated from popup')
+    ;(popup.querySelector('.ticket-modal-close') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(document.querySelector('dialog')).toBeNull()
+    expect(router.currentRoute.value.path).toBe('/admin/tickets')
+  })
+
+  it('shows the submitted contact number and address inside the ticket popup', async () => {
+    ticketApi.getTicket.mockResolvedValueOnce({ ...ticketRecords[0]!, contact_number: '09171234567', address: 'Room 204' })
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets')
+    await flushPromises()
+    await wrapper.get('.ticket-table button').trigger('click')
+    await flushPromises()
+    const contact = document.querySelector('dialog .ticket-contact-details')!
+    expect(contact.textContent).toContain('09171234567')
+    expect(contact.textContent).toContain('Room 204')
+  })
+
+  it('shows only resolved tickets in the replacement menu and keeps all records in All Tickets', async () => {
+    ticketApi.listTickets.mockResolvedValueOnce([
+      ...ticketRecords,
+      { ...ticketRecords[0]!, id: 60, status: 'RESOLVED', problem_title: 'Completed issue' },
+      { ...ticketRecords[0]!, id: 61, status: 'CANCELLED', problem_title: 'Cancelled issue' },
+    ])
+    const wrapper = mountRouter()
+    await router.push('/admin/resolved-tickets')
+    await flushPromises()
+    expect(wrapper.get('#tickets-heading').text()).toBe('Resolved Tickets')
+    expect(wrapper.findAll('.ticket-table tbody tr')).toHaveLength(1)
+    expect(wrapper.get('.ticket-table').text()).toContain('Completed issue')
+    expect(wrapper.get('.ticket-table').text()).not.toContain('Cancelled issue')
+    expect(wrapper.get('.dashboard-nav').text()).not.toContain('Resolved Tickets')
+    expect(wrapper.get('.dashboard-nav').text()).not.toContain('Assignments')
+    await router.push('/admin/tickets')
+    await flushPromises()
+    expect(wrapper.findAll('.ticket-table tbody tr')).toHaveLength(4)
+    await router.push('/admin/assignments')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/admin/resolved-tickets')
+  })
+
+  it('counts only active technician assignments and shows their linked tickets', async () => {
+    assignmentApi.listAssignments.mockResolvedValueOnce([assignmentRecord, { ...assignmentRecord, id: 16, tickets: 50, is_active: false }])
+    const wrapper = mountRouter()
+    await router.push('/admin/technicians')
+    await flushPromises()
+    const firstRow = wrapper.get('.directory-table tbody tr')
+    expect(firstRow.findAll('td')[4]!.text()).toBe('1')
+    await firstRow.get('button').trigger('click')
+    const popup = document.querySelector('.directory-details-modal')!
+    expect(popup.textContent).toContain('Technician Details')
+    expect(popup.textContent).toContain('Cannot connect to Wi-Fi')
+    expect(popup.textContent).not.toContain('Printer is jammed')
+    expect(router.currentRoute.value.path).toBe('/admin/technicians')
+    ;(popup.querySelector('.ticket-modal-close') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(document.querySelector('.directory-details-modal')).toBeNull()
+  })
+
+  it('edits details inside the same card as the technician assignment', async () => {
+    ticketApi.updateTicket.mockResolvedValue({ ...ticketRecords[0], problem_title: 'Updated title', problem_description: 'Updated description' })
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets/51')
+    await flushPromises()
+
+    expect(wrapper.find('.ticket-detail-card .assignment-panel').exists()).toBe(true)
+    await wrapper.get('.ticket-edit-button').trigger('click')
+    await wrapper.get('#edit-ticket-title').setValue('Updated title')
+    await wrapper.get('#edit-ticket-description').setValue('Updated description')
+    await wrapper.get('.ticket-detail-edit').trigger('submit')
+    await flushPromises()
+
+    expect(ticketApi.updateTicket).toHaveBeenCalledWith('51', { problem_title: 'Updated title', problem_description: 'Updated description' })
+    expect(wrapper.get('.ticket-detail-card').text()).toContain('Updated title')
+    expect(wrapper.text()).toContain('Ticket details updated.')
+    expect(wrapper.find('.ticket-detail-edit').exists()).toBe(false)
+  })
+
+  it('cancels editing without saving changes', async () => {
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets/51')
+    await flushPromises()
+    await wrapper.get('.ticket-edit-button').trigger('click')
+    await wrapper.get('#edit-ticket-title').setValue('Unsaved title')
+    await wrapper.get('.ticket-detail-edit button[type="button"]').trigger('click')
+    expect(ticketApi.updateTicket).not.toHaveBeenCalled()
+    expect(wrapper.get('.ticket-detail-card').text()).toContain('Cannot connect to Wi-Fi')
+  })
+
+  it('cancels an active ticket and removes its edit and assignment actions', async () => {
+    ticketApi.updateTicketStatus.mockResolvedValueOnce({ ...ticketRecords[0]!, status: 'CANCELLED' })
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets/51')
+    await flushPromises()
+    await wrapper.get('.ticket-cancel-actions button').trigger('click')
+    await flushPromises()
+    expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('51', 'CANCELLED')
+    expect(wrapper.text()).toContain('Ticket cancelled.')
+    expect(wrapper.find('.ticket-cancel-actions').exists()).toBe(false)
+    expect(wrapper.find('.ticket-edit-button').exists()).toBe(false)
+    expect(wrapper.find('.assignment-form').exists()).toBe(false)
   })
 
   it('shows only available technicians and creates an assignment', async () => {
@@ -153,24 +364,13 @@ describe('administrator ticket management', () => {
     expect(wrapper.text()).toContain('Technician assignment updated.')
   })
 
-  it('joins assignment history with ticket status', async () => {
-    assignmentApi.listAssignments.mockResolvedValueOnce([assignmentRecord])
-    const wrapper = mountRouter()
-    await router.push('/admin/assignments')
-    await flushPromises()
-
-    expect(wrapper.get('.ticket-table-wrap').text()).toContain('Cannot connect to Wi-Fi')
-    expect(wrapper.get('.ticket-table-wrap').text()).toContain('Sam Taylor')
-    expect(wrapper.get('.ticket-table-wrap').text()).toContain('Open')
-    expect(wrapper.get('.ticket-table-wrap').text()).toContain('Active')
-  })
 
   it('loads customer and technician directories without exposing sensitive fields', async () => {
     const wrapper = mountRouter()
     await router.push('/admin/customers')
     await flushPromises()
     expect(wrapper.text()).toContain('casey@example.test')
-    expect(wrapper.text()).toContain('@casey')
+    expect(wrapper.get('.directory-table').text()).not.toContain('@casey')
     expect(wrapper.text()).not.toContain('address')
 
     await router.push('/admin/technicians')
@@ -180,11 +380,18 @@ describe('administrator ticket management', () => {
     expect(wrapper.text()).toContain('Available')
     expect(wrapper.text()).toContain('Unavailable')
     expect(wrapper.text()).not.toContain('password')
+    await wrapper.get('#technician-search').setValue('Hardware')
+    await wrapper.get('.technician-availability-filter select').setValue('UNAVAILABLE')
+    expect(wrapper.findAll('.directory-table tbody tr')).toHaveLength(1)
+    expect(wrapper.get('.directory-table').text()).toContain('Jules Park')
+    expect(wrapper.get('.directory-table').text()).not.toContain('@tech-jules')
+    await wrapper.get('.technician-availability-filter select').setValue('AVAILABLE')
+    expect(wrapper.text()).toContain('No matching technicians')
   })
 
   it('lets an admin create a technician account and refreshes the directory', async () => {
     directoryApi.createTechnician.mockResolvedValueOnce({})
-    const wrapper = mountRouter()
+    const wrapper = mountRouter(true)
     await router.push('/admin/technicians')
     await flushPromises()
     await wrapper.get('.dashboard-view-heading button').trigger('click')
@@ -210,8 +417,25 @@ describe('administrator ticket management', () => {
     expect(wrapper.text()).toContain('Technician account created successfully.')
   })
 
-  it('validates required technician account fields before sending the request', async () => {
+  it('opens Add Technician in a popup and closes it without navigating', async () => {
     const wrapper = mountRouter()
+    await router.push('/admin/technicians')
+    await flushPromises()
+    await wrapper.get('.dashboard-view-heading button').trigger('click')
+    await flushPromises()
+    const popup = document.querySelector('dialog')!
+    expect(popup.hasAttribute('open')).toBe(true)
+    expect(popup.querySelector('#create-technician-form')).not.toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
+    popup.dispatchEvent(new Event('cancel', { cancelable: true }))
+    await flushPromises()
+    expect(document.querySelector('dialog')).toBeNull()
+    expect(router.currentRoute.value.path).toBe('/admin/technicians')
+    expect(directoryApi.createTechnician).not.toHaveBeenCalled()
+  })
+
+  it('validates required technician account fields before sending the request', async () => {
+    const wrapper = mountRouter(true)
     await router.push('/admin/technicians')
     await flushPromises()
     await wrapper.get('.dashboard-view-heading button').trigger('click')

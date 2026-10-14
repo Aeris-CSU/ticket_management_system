@@ -54,7 +54,11 @@ class TechniciansSerializer(serializers.ModelSerializer):
         )
         return technician
 
+    @transaction.atomic
     def update(self, instance, validated_data):
+        instance = Technicians.objects.select_for_update().get(pk=instance.pk)
+        if validated_data.get('availability_status') == Technicians.Availability.AVAILABLE and instance.assignments_set.filter(is_active=True).exists():
+            raise serializers.ValidationError({'availability_status': 'A technician with an active ticket cannot be marked available.'})
         user_data = validated_data.pop('user', {})
         user = instance.user
 

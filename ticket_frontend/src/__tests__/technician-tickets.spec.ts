@@ -32,6 +32,8 @@ const assignments: Assignment[] = [
 
 describe('technician ticket workflow', () => {
   beforeEach(async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', '') } })
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.removeAttribute('open') } })
     vi.clearAllMocks()
     tickets[0]!.status = 'ASSIGNED'
     tickets[1]!.status = 'ONGOING'
@@ -53,6 +55,31 @@ describe('technician ticket workflow', () => {
 
   afterEach(() => mounted.splice(0).forEach((wrapper) => wrapper.unmount()))
 
+  it.each(['/technician', '/technician/tickets'])('opens a ticket popup from %s and updates its work status without navigating', async (path) => {
+    const wrapper = mountRouter()
+    await router.push(path)
+    await flushPromises()
+    await wrapper.get(path === '/technician' ? 'button.dashboard-recent-row' : '.ticket-table button').trigger('click')
+    await flushPromises()
+    const popup = document.querySelector('dialog')!
+    expect(popup.hasAttribute('open')).toBe(true)
+    expect(router.currentRoute.value.path).toBe(path)
+    expect(popup.textContent).toContain('Casey Rivera')
+    ;(popup.querySelector('.technician-status-actions button') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('91', 'ONGOING')
+    expect(popup.textContent).toContain('Mark as Resolved')
+    ;(popup.querySelector('.technician-status-actions button') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('91', 'RESOLVED')
+    expect(popup.textContent).toContain('Ticket marked as resolved.')
+    popup.dispatchEvent(new Event('cancel', { cancelable: true }))
+    await flushPromises()
+    expect(document.querySelector('dialog')).toBeNull()
+    expect(router.currentRoute.value.path).toBe(path)
+    expect(wrapper.text()).not.toContain('Cannot connect to Wi-Fi')
+  })
+
   it('shows backend ticket statistics and recent assigned ticket information', async () => {
     const wrapper = mountRouter()
     await router.push('/technician')
@@ -63,7 +90,7 @@ describe('technician ticket workflow', () => {
     expect(wrapper.get('.dashboard-recent').text()).toContain('Casey Rivera')
     expect(wrapper.get('.dashboard-recent').text()).toContain('Recent Assigned Tickets')
     expect(wrapper.get('.dashboard-recent').attributes('aria-labelledby')).toBe('recent-tickets-heading')
-    expect(wrapper.get('.dashboard-recent-list a').attributes('href')).toBe('/technician/tickets/91')
+    expect(wrapper.get('.dashboard-recent-list button').text()).toContain('Cannot connect to Wi-Fi')
     expect(wrapper.get('.dashboard-recent').text()).not.toContain('Laptop setup')
   })
 
@@ -78,7 +105,7 @@ describe('technician ticket workflow', () => {
     await wrapper.get('input[type="search"]').setValue('printer')
     expect(wrapper.get('.ticket-table-wrap').text()).toContain('Printer is jammed')
     expect(wrapper.get('.ticket-table-wrap').text()).not.toContain('Cannot connect to Wi-Fi')
-    expect(wrapper.get('.ticket-table-wrap a').attributes('href')).toBe('/technician/tickets/90')
+    expect(wrapper.get('.ticket-table-wrap button').text()).toBe('View details')
     expect(wrapper.find('a[href="/customer/tickets/new"]').exists()).toBe(false)
   })
 
@@ -119,7 +146,7 @@ describe('technician ticket workflow', () => {
     expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('91', 'ONGOING')
     expect(ticketApi.getTicket).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('Work started. Ticket status updated.')
-    expect(wrapper.get('.ticket-status-ongoing').text()).toBe('In Progress')
+    expect(wrapper.get('.ticket-status-ongoing').text()).toBe('Ongoing')
     expect(wrapper.text()).not.toContain('Technician Assignment')
   })
 

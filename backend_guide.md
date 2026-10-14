@@ -101,6 +101,16 @@ Your existing administrator is stored in your own database. Cloning the reposito
 python manage.py createsuperuser --username admin
 ```
 
+When the terminal shows `Password:` and `Password (again):`, type your chosen password and press Enter each time. The terminal does not display characters or asterisks while you type; this is normal. Remember this password for the login page. The command does not provide a default password.
+
+If the account already exists but you do not know its password, set a new one:
+
+```powershell
+python manage.py changepassword admin
+```
+
+Enter the new password twice when prompted. Replace `admin` with your actual username. The role-setting command below changes only the role; it does not create or change the password.
+
 This project checks its custom `role` field for API access. Django's superuser flag alone does not assign the `ADMIN` role. Set it explicitly for the account you just created:
 
 ```powershell

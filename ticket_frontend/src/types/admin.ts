@@ -21,6 +21,8 @@ export interface Technician {
 }
 
 export interface CustomerDirectoryEntry {
+  contact_number?: string
+  address?: string
   id: number
   username: string
   first_name: string

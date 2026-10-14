@@ -9,6 +9,7 @@ const router = useRouter()
 const username = ref('')
 const email = ref('')
 const address = ref('')
+const contactNumber = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const showPassword = ref(false)
@@ -37,6 +38,7 @@ async function submitRegistration() {
       username: username.value.trim(),
       email: email.value.trim() || undefined,
       address: address.value.trim(),
+      contact_number: contactNumber.value.trim() || undefined,
       password: password.value,
     })
     await router.replace({ path: '/login', query: { registered: '1' } })
@@ -75,6 +77,10 @@ async function submitRegistration() {
         <label class="auth-field">
           <span>Address</span>
           <input v-model="address" type="text" name="address" autocomplete="street-address" required maxlength="100">
+        </label>
+        <label class="auth-field">
+          <span>Contact number <span class="optional-label">(optional)</span></span>
+          <input v-model="contactNumber" type="tel" name="contact_number" autocomplete="tel" maxlength="30" placeholder="e.g. +63 917 123 4567">
         </label>
         <label class="auth-field">
           <span>Password</span>

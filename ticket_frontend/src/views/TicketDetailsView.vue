@@ -5,11 +5,13 @@ import TicketStatusBadge from '@/components/dashboard/TicketStatusBadge.vue'
 import { readableAuthError } from '@/services/auth'
 import { createAssignment, listAssignments, reassignTechnician } from '@/services/assignments'
 import { listTechnicians } from '@/services/directories'
-import { getTicket, updateTicketStatus } from '@/services/tickets'
+import { getTicket, updateTicket, updateTicketStatus } from '@/services/tickets'
 import type { Assignment, Technician } from '@/types/admin'
 import type { Ticket } from '@/types/ticket'
 
 const route = useRoute()
+const props = defineProps<{ ticketId?: number; embedded?: boolean }>()
+const emit = defineEmits<{ changed: [ticket: Ticket] }>()
 const ticket = ref<Ticket | null>(null)
 const assignments = ref<Assignment[]>([])
 const technicians = ref<Technician[]>([])
@@ -22,6 +24,14 @@ const statusMessage = ref('')
 const isAssigning = ref(false)
 const isUpdatingStatus = ref(false)
 const selectedTechnicianId = ref('')
+const isEditing = ref(false)
+const isSavingDetails = ref(false)
+const editTitle = ref('')
+const editDescription = ref('')
+const editAddress = ref('')
+const editContactNumber = ref('')
+const detailsError = ref('')
+const detailsMessage = ref('')
 const isAdmin = computed(() => route.meta.role === 'ADMIN')
 const isTechnician = computed(() => route.meta.role === 'TECHNICIAN')
 const basePath = computed(() => isAdmin.value ? '/admin' : isTechnician.value ? '/technician' : '/customer')
@@ -32,9 +42,49 @@ const canAssign = computed(() => ticket.value?.status === 'OPEN' && !activeAssig
 const canReassign = computed(() => Boolean(activeAssignment.value && (ticket.value?.status === 'ASSIGNED' || ticket.value?.status === 'ONGOING')))
 const canStartWork = computed(() => isTechnician.value && Boolean(activeAssignment.value) && ticket.value?.status === 'ASSIGNED')
 const canResolve = computed(() => isTechnician.value && Boolean(activeAssignment.value) && ticket.value?.status === 'ONGOING')
+const canCancel = computed(() => Boolean(ticket.value && (isAdmin.value
+  ? ['OPEN', 'ASSIGNED', 'ONGOING'].includes(ticket.value.status)
+  : !isTechnician.value && ticket.value.status === 'OPEN')))
+const canEditDetails = computed(() => Boolean(ticket.value && !['RESOLVED', 'CANCELLED'].includes(ticket.value.status) && (isAdmin.value || (isTechnician.value && activeAssignment.value))))
+
+function startEditing() {
+  if (!ticket.value || !canEditDetails.value) return
+  editTitle.value = ticket.value.problem_title
+  editDescription.value = ticket.value.problem_description
+  editAddress.value = ticket.value.address || ticket.value.customer_address || ''
+  editContactNumber.value = ticket.value.contact_number || ''
+  detailsError.value = ''
+  detailsMessage.value = ''
+  isEditing.value = true
+}
+
+async function saveDetails() {
+  if (!ticket.value || !canEditDetails.value || isSavingDetails.value) return
+  detailsError.value = ''
+  if (!editTitle.value.trim() || !editDescription.value.trim()) {
+    detailsError.value = 'Enter a title and description.'
+    return
+  }
+  isSavingDetails.value = true
+  try {
+    ticket.value = await updateTicket(String(ticket.value.id), {
+      problem_title: editTitle.value.trim(),
+      problem_description: editDescription.value.trim(),
+      ...(editAddress.value.trim() !== (ticket.value.address || ticket.value.customer_address || '') ? { address: editAddress.value.trim() } : {}),
+      ...(editContactNumber.value.trim() !== (ticket.value.contact_number || '') ? { contact_number: editContactNumber.value.trim() } : {}),
+    })
+    isEditing.value = false
+    emit('changed', ticket.value)
+    detailsMessage.value = 'Ticket details updated.'
+  } catch (error) {
+    detailsError.value = readableAuthError(error, 'Could not save ticket details. Please try again.')
+  } finally {
+    isSavingDetails.value = false
+  }
+}
 
 async function loadTicketAndAdminData() {
-  const id = String(route.params.id)
+  const id = String(props.ticketId ?? route.params.id)
   ticket.value = await getTicket(id)
   if (isTechnician.value) {
     try {
@@ -61,7 +111,9 @@ async function refreshAssignmentData() {
   if (!ticket.value) return
   const [updatedTicket, updatedAssignments] = await Promise.all([getTicket(String(ticket.value.id)), listAssignments()])
   ticket.value = updatedTicket
+  emit('changed', updatedTicket)
   assignments.value = updatedAssignments
+  if (isAdmin.value) technicians.value = await listTechnicians()
   selectedTechnicianId.value = String(updatedAssignments.find((item) => item.tickets === updatedTicket.id && item.is_active)?.technicians ?? '')
 }
 
@@ -88,16 +140,20 @@ async function submitAssignment() {
   }
 }
 
-async function updateStatus(nextStatus: 'ONGOING' | 'RESOLVED') {
-  if (!ticket.value || isUpdatingStatus.value || (!canStartWork.value && !canResolve.value)) return
+async function updateStatus(nextStatus: 'ONGOING' | 'RESOLVED' | 'CANCELLED') {
+  const permitted = nextStatus === 'CANCELLED' ? canCancel.value : nextStatus === 'ONGOING' ? canStartWork.value : canResolve.value
+  if (!ticket.value || isUpdatingStatus.value || !permitted) return
   isUpdatingStatus.value = true
   statusError.value = ''
   statusMessage.value = ''
   try {
     ticket.value = await updateTicketStatus(String(ticket.value.id), nextStatus)
-    statusMessage.value = nextStatus === 'ONGOING' ? 'Work started. Ticket status updated.' : 'Ticket marked as resolved.'
+    if (nextStatus === 'CANCELLED' || nextStatus === 'RESOLVED') isEditing.value = false
+    emit('changed', ticket.value)
+    statusMessage.value = nextStatus === 'CANCELLED' ? 'Ticket cancelled.' : nextStatus === 'ONGOING' ? 'Work started. Ticket status updated.' : 'Ticket marked as resolved.'
     try {
       assignments.value = await listAssignments()
+      if (isAdmin.value) technicians.value = await listTechnicians()
     } catch {
       // Keep the confirmed ticket returned by the update endpoint if refreshing fails.
     }
@@ -120,8 +176,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="dashboard-view" aria-labelledby="ticket-details-heading">
-    <div class="dashboard-view-heading">
+  <section class="dashboard-view" :aria-labelledby="embedded ? undefined : 'ticket-details-heading'" :aria-label="embedded ? 'Ticket information and actions' : undefined">
+    <div v-if="!embedded" class="dashboard-view-heading">
       <div><p class="eyebrow">{{ isAdmin ? 'Ticket management' : isTechnician ? 'Assigned work' : 'Support request' }}</p><h2 id="ticket-details-heading">Ticket Details</h2></div>
       <RouterLink class="button button-secondary" :to="`${basePath}/tickets`">{{ isAdmin ? 'Back to All Tickets' : isTechnician ? 'Back to Assigned Tickets' : 'Back to My Tickets' }}</RouterLink>
     </div>
@@ -132,18 +188,39 @@ onMounted(async () => {
       <div v-if="isAdmin && assignmentError" class="form-message form-error" role="alert">{{ assignmentError }}</div>
       <div v-if="isAdmin && assignmentMessage" class="form-message form-success" role="status">{{ assignmentMessage }}</div>
       <div v-if="isTechnician && assignmentError" class="form-message form-error" role="alert">{{ assignmentError }}</div>
-      <div v-if="isTechnician && statusError" class="form-message form-error" role="alert">{{ statusError }}</div>
-      <div v-if="isTechnician && statusMessage" class="form-message form-success" role="status">{{ statusMessage }}</div>
+      <div v-if="statusError" class="form-message form-error" role="alert">{{ statusError }}</div>
+      <div v-if="statusMessage" class="form-message form-success" role="status">{{ statusMessage }}</div>
       <article class="ticket-detail-card">
-        <div class="ticket-detail-top"><span class="ticket-table-id">Ticket #{{ ticket.id }}</span><TicketStatusBadge :status="ticket.status" /></div>
-        <h3>{{ ticket.problem_title }}</h3>
-        <p v-if="isAdmin || isTechnician" class="ticket-detail-customer">Customer: <strong>{{ ticket.customer_name }}</strong></p>
+        <div class="ticket-detail-top"><span class="ticket-table-id">Ticket #{{ ticket.id }}</span><TicketStatusBadge :status="ticket.status" /><button v-if="canEditDetails && !isEditing" class="button button-secondary ticket-edit-button" type="button" @click="startEditing">Edit Details</button></div>
+        <div v-if="detailsError" class="form-message form-error" role="alert">{{ detailsError }}</div>
+        <div v-if="detailsMessage" class="form-message form-success" role="status">{{ detailsMessage }}</div>
+        <form v-if="isEditing" class="ticket-detail-edit" @submit.prevent="saveDetails">
+          <label class="ticket-form-field" for="edit-ticket-title">Problem title
+            <input id="edit-ticket-title" v-model="editTitle" maxlength="200" required :disabled="isSavingDetails" />
+          </label>
+          <label class="ticket-form-field" for="edit-ticket-description">Description
+            <textarea id="edit-ticket-description" v-model="editDescription" rows="5" required :disabled="isSavingDetails"></textarea>
+          </label>
+          <label class="ticket-form-field" for="edit-ticket-contact">Contact number (optional)<input id="edit-ticket-contact" v-model="editContactNumber" type="tel" maxlength="30" :disabled="isSavingDetails" /></label>
+          <label class="ticket-form-field" for="edit-ticket-address">Address<input id="edit-ticket-address" v-model="editAddress" maxlength="100" :disabled="isSavingDetails" /></label>
+          <div class="ticket-form-actions">
+            <button class="button button-secondary" type="button" :disabled="isSavingDetails" @click="isEditing = false; detailsError = ''">Cancel</button>
+            <button class="button button-primary" type="submit" :disabled="isSavingDetails">{{ isSavingDetails ? 'Saving...' : 'Save Changes' }}</button>
+          </div>
+        </form>
+        <template v-else>
+        <h3 class="ticket-issue-title">{{ ticket.problem_title }}</h3>
+        <p v-if="!embedded && (isAdmin || isTechnician)" class="ticket-detail-customer">Customer: <strong>{{ ticket.customer_name }}</strong></p>
         <div class="ticket-detail-dates">
+          <p v-if="embedded && (isAdmin || isTechnician)"><span>Customer</span><strong class="ticket-metadata-value">{{ ticket.customer_name }}</strong></p>
           <p><span>Created</span><time :datetime="ticket.created_at">{{ new Date(ticket.created_at).toLocaleString() }}</time></p>
           <p><span>Last updated</span><time :datetime="ticket.updated_at">{{ new Date(ticket.updated_at).toLocaleString() }}</time></p>
         </div>
+        <div class="ticket-info-grid">
         <div class="ticket-detail-description"><h4>Description</h4><p>{{ ticket.problem_description }}</p></div>
-      </article>
+        <div class="ticket-detail-description ticket-customer-address"><h4>Contact and location</h4><dl class="ticket-contact-details"><div><dt>Contact number</dt><dd>{{ ticket.contact_number || 'Not provided' }}</dd></div><div><dt>Address</dt><dd>{{ ticket.address || ticket.customer_address || 'Not provided' }}</dd></div></dl></div>
+        </div>
+        </template>
       <section v-if="isTechnician" class="assignment-panel technician-status-panel" aria-labelledby="ticket-status-heading">
         <div class="dashboard-section-heading"><div><h3 id="ticket-status-heading">Ticket Status</h3><p>Current status: <TicketStatusBadge :status="ticket.status" /></p></div></div>
         <p v-if="!assignmentError && !activeAssignment" class="assignment-hint">This ticket is not currently assigned to your account, so status actions are unavailable.</p>
@@ -154,7 +231,7 @@ onMounted(async () => {
         </div>
       </section>
       <section v-if="isAdmin" class="assignment-panel" aria-labelledby="assignment-heading">
-        <div class="dashboard-section-heading"><div><h3 id="assignment-heading">Technician Assignment</h3><p>Assignment options follow the ticket's current status and technician availability.</p></div></div>
+        <div class="dashboard-section-heading"><div><h3 id="assignment-heading">Technician Assignment</h3><p>Assign or change the technician for this ticket.</p></div></div>
         <div v-if="activeAssignment" class="active-assignment-summary">
           <span class="assignment-state is-active">Active</span>
           <span>Assigned to <strong>{{ activeAssignment.technician_name }}</strong></span>
@@ -169,7 +246,7 @@ onMounted(async () => {
               </option>
             </select>
           </label>
-          <p v-if="canReassign" class="assignment-hint">Reassignment is supported by the backend and moves this ticket back to Assigned.</p>
+          <p v-if="canReassign" class="assignment-hint">Changing the technician returns this ticket to Assigned.</p>
           <p v-if="availableTechnicians.length === 0" class="assignment-hint">No technicians are currently available.</p>
           <button class="button button-primary" type="submit" :disabled="isAssigning || !selectedTechnicianId || availableTechnicians.length === 0 || (canReassign && selectedTechnicianId === String(activeAssignment?.technicians))">
             {{ isAssigning ? 'Saving…' : canReassign ? 'Reassign Technician' : 'Assign Technician' }}
@@ -181,6 +258,8 @@ onMounted(async () => {
           <p v-for="record in assignmentHistory" :key="record.id">#{{ record.id }} · {{ record.technician_name }} · {{ record.is_active ? 'Active' : 'Previous assignment' }}</p>
         </div>
       </section>
+      <div v-if="canCancel" class="ticket-cancel-actions"><button class="button button-secondary" type="button" :disabled="isUpdatingStatus || isSavingDetails || isAssigning" @click="updateStatus('CANCELLED')">{{ isUpdatingStatus ? 'Cancelling...' : 'Cancel Ticket' }}</button></div>
+      </article>
     </template>
   </section>
 </template>

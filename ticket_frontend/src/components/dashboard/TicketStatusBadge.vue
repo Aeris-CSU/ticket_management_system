@@ -6,7 +6,7 @@ defineProps<{ status: TicketStatus }>()
 const labels: Record<TicketStatus, string> = {
   OPEN: 'Open',
   ASSIGNED: 'Assigned',
-  ONGOING: 'In Progress',
+  ONGOING: 'Ongoing',
   RESOLVED: 'Resolved',
   CANCELLED: 'Cancelled',
 }

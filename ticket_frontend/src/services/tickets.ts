@@ -20,3 +20,8 @@ export async function updateTicketStatus(id: string, status: TicketStatus) {
   const { data } = await api.patch<Ticket>(`tickets/${encodeURIComponent(id)}/status/`, { status })
   return data
 }
+
+export async function updateTicket(id: string, payload: CreateTicketPayload) {
+  const { data } = await api.put<Ticket>(`tickets/${encodeURIComponent(id)}/`, payload)
+  return data
+}

@@ -5,6 +5,7 @@ from assignments.models import Assignments
 from authentication.models import Authentication
 from technicians.models import Technicians
 from tickets.models import Tickets
+from .services import release_technicians
 
 
 class AssignmentsSerializer(serializers.ModelSerializer):
@@ -33,8 +34,14 @@ class AssignmentsSerializer(serializers.ModelSerializer):
         if ticket and technician:
             if technician.user.role != Authentication.ROLE_CHOICES.TECHNICIAN:
                 raise serializers.ValidationError({'technicians': 'The selected account is not a technician.'})
-            if technician.availability_status != Technicians.Availability.AVAILABLE:
+            same_assignment = self.instance and technician.pk == self.instance.technicians_id
+            if not same_assignment and technician.availability_status != Technicians.Availability.AVAILABLE:
                 raise serializers.ValidationError({'technicians': 'The technician is not available.'})
+            workload = Assignments.objects.filter(technicians=technician, is_active=True)
+            if self.instance:
+                workload = workload.exclude(pk=self.instance.pk)
+            if workload.exists():
+                raise serializers.ValidationError({'technicians': 'The technician already has an active ticket.'})
             duplicates = Assignments.objects.filter(tickets=ticket, is_active=True)
             if self.instance:
                 duplicates = duplicates.exclude(pk=self.instance.pk)
@@ -47,16 +54,20 @@ class AssignmentsSerializer(serializers.ModelSerializer):
         ticket = Tickets.objects.select_for_update().get(pk=validated_data['tickets'].pk)
         if ticket.status != Tickets.Status.OPEN:
             raise serializers.ValidationError({'tickets': 'Only open tickets can receive their first assignment.'})
-        technician = Technicians.objects.get(pk=validated_data['technicians'].pk)
+        technician = Technicians.objects.select_for_update().get(pk=validated_data['technicians'].pk)
         if technician.availability_status != Technicians.Availability.AVAILABLE:
             raise serializers.ValidationError({'technicians': 'The technician is not available.'})
         if technician.user.role != Authentication.ROLE_CHOICES.TECHNICIAN:
             raise serializers.ValidationError({'technicians': 'The selected account is not a technician.'})
         if Assignments.objects.filter(tickets=ticket, is_active=True).exists():
             raise serializers.ValidationError({'tickets': 'This ticket already has an active assignment.'})
+        if Assignments.objects.filter(technicians=technician, is_active=True).exists():
+            raise serializers.ValidationError({'technicians': 'The technician already has an active ticket.'})
         validated_data['tickets'] = ticket
         validated_data['technicians'] = technician
         assignment = Assignments.objects.create(**validated_data)
+        technician.availability_status = Technicians.Availability.UNAVAILABLE
+        technician.save(update_fields=['availability_status', 'updated_at'])
         ticket.status = Tickets.Status.ASSIGNED
         ticket.save(update_fields=['status', 'updated_at'])
         return assignment
@@ -70,16 +81,22 @@ class AssignmentsSerializer(serializers.ModelSerializer):
             return instance
         if ticket.status not in (Tickets.Status.ASSIGNED, Tickets.Status.ONGOING):
             raise serializers.ValidationError({'tickets': 'Only assigned or ongoing tickets can be reassigned.'})
-        technician = Technicians.objects.get(pk=technician.pk)
+        locked = {person.pk: person for person in Technicians.objects.select_for_update().filter(pk__in=[instance.technicians_id, technician.pk]).order_by('pk')}
+        technician = locked[technician.pk]
         if technician.availability_status != Technicians.Availability.AVAILABLE:
             raise serializers.ValidationError({'technicians': 'The technician is not available.'})
         if technician.user.role != Authentication.ROLE_CHOICES.TECHNICIAN:
             raise serializers.ValidationError({'technicians': 'The selected account is not a technician.'})
         if Assignments.objects.filter(tickets=ticket, is_active=True).exclude(pk=instance.pk).exists():
             raise serializers.ValidationError({'tickets': 'This ticket already has an active assignment.'})
+        if Assignments.objects.filter(technicians=technician, is_active=True).exists():
+            raise serializers.ValidationError({'technicians': 'The technician already has an active ticket.'})
         instance.is_active = False
         instance.save(update_fields=['is_active'])
         replacement = Assignments.objects.create(tickets=ticket, technicians=technician)
+        technician.availability_status = Technicians.Availability.UNAVAILABLE
+        technician.save(update_fields=['availability_status', 'updated_at'])
+        release_technicians([instance.technicians_id])
         ticket.status = Tickets.Status.ASSIGNED
         ticket.save(update_fields=['status', 'updated_at'])
         return replacement

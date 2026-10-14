@@ -32,7 +32,7 @@ describe('shared role dashboards', () => {
   afterEach(() => mounted.splice(0).forEach((wrapper) => wrapper.unmount()))
 
   it.each([
-    ['ADMIN', '/admin', 'Admin Dashboard', ['All Tickets', 'Assignments', 'Customers', 'Technicians']],
+    ['ADMIN', '/admin', 'Admin Dashboard', ['All Tickets', 'Customers', 'Technicians']],
     ['TECHNICIAN', '/technician', 'Technician Dashboard', ['Assigned Tickets']],
     ['CUSTOMER', '/customer', 'Customer Dashboard', ['My Tickets', 'Create Ticket']],
   ] as const)('shows the %s overview and its role navigation', async (role, path, heading, links) => {

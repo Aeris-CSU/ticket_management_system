@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
+import { listTickets } from '@/services/tickets'
+import { listAssignments } from '@/services/assignments'
+import TicketStatusBadge from '@/components/dashboard/TicketStatusBadge.vue'
+import DirectoryDetailsModal from '@/components/dashboard/DirectoryDetailsModal.vue'
+import type { Ticket } from '@/types/ticket'
+import type { Assignment } from '@/types/admin'
 import { createTechnician, listCustomers, listTechnicians } from '@/services/directories'
 import { readableAuthError } from '@/services/auth'
 import type { CustomerDirectoryEntry, Technician } from '@/types/admin'
@@ -10,6 +16,7 @@ interface DirectoryRow {
   name: string
   username: string
   email: string
+  contactNumber?: string
   detail: string
   availability?: Technician['availability_status']
 }
@@ -19,6 +26,17 @@ const customers = ref<CustomerDirectoryEntry[]>([])
 const technicians = ref<Technician[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
+const relatedError = ref('')
+const tickets = ref<Ticket[]>([])
+const assignments = ref<Assignment[]>([])
+const selectedPersonId = ref<number | null>(null)
+const search = ref('')
+const availabilityFilter = ref('ALL')
+const selectedPerson = computed(() => rows.value.find((person) => person.id === selectedPersonId.value))
+const activeCount = (id: number) => assignments.value.filter((item) => item.is_active && item.technicians === id).length
+const relatedTickets = computed(() => selectedPersonId.value === null ? [] : tickets.value.filter((ticket) => isTechnicianDirectory.value
+  ? assignments.value.some((item) => item.is_active && item.technicians === selectedPersonId.value && item.tickets === ticket.id)
+  : ticket.customer === selectedPersonId.value))
 const showCreateForm = ref(false)
 const isCreating = ref(false)
 const createError = ref('')
@@ -37,19 +55,34 @@ const rows = computed<DirectoryRow[]>(() => isTechnicianDirectory.value
     availability: person.availability_status,
   }))
   : customers.value.map((person) => ({
+    contactNumber: person.contact_number,
     id: person.id,
     username: person.username,
     name: `${person.first_name} ${person.last_name}`.trim() || person.username,
     email: person.email,
-    detail: person.username,
+    detail: person.address || '',
   })))
+const filteredRows = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return rows.value.filter((person) => `${person.id} ${person.name} ${person.username} ${person.email} ${person.contactNumber || ''} ${person.detail}`.toLowerCase().includes(query)
+    && (!isTechnicianDirectory.value || availabilityFilter.value === 'ALL' || person.availability === availabilityFilter.value))
+})
 
 watch(isTechnicianDirectory, async (technicianDirectory) => {
   isLoading.value = true
   errorMessage.value = ''
+  relatedError.value = ''
+  selectedPersonId.value = null
+  search.value = ''
+  availabilityFilter.value = 'ALL'
   try {
     if (technicianDirectory) technicians.value = await listTechnicians()
     else customers.value = await listCustomers()
+    const [ticketResult, assignmentResult] = await Promise.allSettled([listTickets(), listAssignments()])
+    if (ticketResult.status === 'fulfilled') tickets.value = ticketResult.value
+    else { tickets.value = []; relatedError.value = 'Could not load related tickets. Reload this page to try again.' }
+    if (assignmentResult.status === 'fulfilled') assignments.value = assignmentResult.value
+    else { assignments.value = []; relatedError.value = 'Could not load assignment counts. Reload this page to try again.' }
   } catch (error) {
     errorMessage.value = readableAuthError(error, `Could not load ${heading.value.toLowerCase()}. Please try again.`)
   } finally {
@@ -113,13 +146,40 @@ async function submitTechnician() {
 </script>
 
 <template>
-  <section class="dashboard-view" aria-labelledby="directory-heading">
+  <section class="dashboard-view customers-directory" :class="{ 'technicians-directory': isTechnicianDirectory }" aria-labelledby="directory-heading">
     <div class="dashboard-view-heading">
-      <div><p class="eyebrow">User directory</p><h2 id="directory-heading">{{ heading }}</h2><p>{{ isTechnicianDirectory ? 'View technician contact and availability information.' : 'View customer account information.' }}</p></div>
-      <button v-if="isTechnicianDirectory" class="button button-primary" type="button" :aria-expanded="showCreateForm" aria-controls="create-technician-form" @click="showCreateForm = !showCreateForm; createError = ''; createMessage = ''">{{ showCreateForm ? 'Close form' : 'Add Technician' }}</button>
+      <div><p class="eyebrow">User directory</p><h2 id="directory-heading">{{ heading }}</h2><p>{{ isTechnicianDirectory ? 'View technician information and availability.' : 'View registered customers and their submitted support tickets.' }}</p></div>
+      <button v-if="isTechnicianDirectory" class="button button-primary" type="button" :aria-expanded="showCreateForm" aria-controls="create-technician-form" @click="selectedPersonId = null; showCreateForm = true; createError = ''; createMessage = ''">Add Technician</button>
     </div>
     <p v-if="createMessage" class="form-message form-success" role="status">{{ createMessage }}</p>
-    <form v-if="isTechnicianDirectory && showCreateForm" id="create-technician-form" class="ticket-form-card technician-create-form" novalidate @submit.prevent="submitTechnician">
+    <p v-if="relatedError" class="form-message form-error" role="alert">{{ relatedError }}</p>
+    <DirectoryDetailsModal v-if="selectedPerson" :title="isTechnicianDirectory ? 'Technician Details' : 'Customer Details'" @close="selectedPersonId = null">
+    <section class="ticket-detail-card" :class="{ 'customer-profile-card': !isTechnicianDirectory }" aria-labelledby="person-details-heading">
+      <template v-if="!isTechnicianDirectory">
+        <div class="customer-profile-heading">
+          <span class="customer-profile-avatar" aria-hidden="true">{{ selectedPerson.name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() }}</span>
+          <div><h3 id="person-details-heading">{{ selectedPerson.name }}</h3><p class="customer-profile-caption">Customer account</p></div>
+        </div>
+        <dl class="customer-profile-info">
+          <div><dt>Email address</dt><dd>{{ selectedPerson.email || 'Not provided' }}</dd></div>
+          <div><dt>Contact number</dt><dd>{{ selectedPerson.contactNumber || 'Not provided' }}</dd></div>
+          <div class="customer-profile-address"><dt>Address</dt><dd>{{ selectedPerson.detail || 'Not provided' }}</dd></div>
+        </dl>
+      </template>
+      <template v-else>
+        <div class="ticket-detail-top"><h3 id="person-details-heading">{{ selectedPerson.name }}</h3><span class="ticket-table-id">#{{ selectedPerson.id }}</span></div>
+        <p class="directory-detail">@{{ selectedPerson.username }} ? {{ selectedPerson.email || 'No email provided' }}</p>
+        <p class="directory-detail">Specialization: {{ selectedPerson.detail || 'Not provided' }}</p>
+        <p class="directory-detail">Availability: <span class="assignment-state" :class="selectedPerson.availability === 'AVAILABLE' ? 'is-active' : 'is-inactive'">{{ selectedPerson.availability === 'AVAILABLE' ? 'Available' : 'Unavailable' }}</span></p>
+      </template>
+      <h4>{{ isTechnicianDirectory ? 'Active assigned tickets' : 'Submitted support tickets' }} <span v-if="!isTechnicianDirectory && !relatedError" class="queue-count">{{ relatedTickets.length }}</span></h4>
+      <p v-if="!relatedError && !relatedTickets.length" class="directory-detail" :class="{ 'customer-ticket-empty': !isTechnicianDirectory }">{{ isTechnicianDirectory ? 'No tickets to display.' : 'This customer has not submitted any support tickets yet.' }}</p>
+      <p v-if="relatedError" class="form-message form-error" role="alert">{{ relatedError }}</p>
+      <ul v-if="!relatedError" class="directory-ticket-links"><li v-for="item in relatedTickets" :key="item.id"><RouterLink class="dashboard-text-link" :to="`/admin/tickets/${item.id}`">#{{ item.id }} — {{ item.problem_title }}</RouterLink><TicketStatusBadge :status="item.status" /></li></ul>
+    </section>
+    </DirectoryDetailsModal>
+    <DirectoryDetailsModal v-if="isTechnicianDirectory && showCreateForm" title="Add Technician" :dismissible="!isCreating" @close="showCreateForm = false">
+    <form id="create-technician-form" class="ticket-form-card technician-create-form" :aria-busy="isCreating" novalidate @submit.prevent="submitTechnician">
       <p class="technician-form-note">Create a technician login. Share the temporary password with them securely so they can sign in on the existing login page.</p>
       <div v-if="createError" class="form-message form-error" role="alert">{{ createError }}</div>
       <label class="ticket-form-field" for="technician-username">Username
@@ -140,32 +200,47 @@ async function submitTechnician() {
         <small v-if="technicianFieldErrors.specialization" id="technician-specialization-error" class="ticket-field-error">{{ technicianFieldErrors.specialization }}</small>
       </label>
       <div class="ticket-form-actions">
-        <button class="button button-secondary" type="button" @click="showCreateForm = false">Cancel</button>
+        <button class="button button-secondary" type="button" :disabled="isCreating" @click="showCreateForm = false">Cancel</button>
         <button class="button button-primary" type="submit" :disabled="isCreating">{{ isCreating ? 'Creating…' : 'Create Technician' }}</button>
       </div>
     </form>
+    </DirectoryDetailsModal>
+    <div class="customer-search-bar">
+      <label class="ticket-filter-control" :for="isTechnicianDirectory ? 'technician-search' : 'customer-search'">Search {{ heading.toLowerCase() }}
+        <input :id="isTechnicianDirectory ? 'technician-search' : 'customer-search'" v-model="search" type="search" :placeholder="isTechnicianDirectory ? 'Search by name, email, or specialization' : 'Search by name, email, contact number, or address'" autocomplete="off" />
+      </label>
+      <label v-if="isTechnicianDirectory" class="ticket-filter-control technician-availability-filter">Availability<select v-model="availabilityFilter"><option value="ALL">All availability</option><option value="AVAILABLE">Available</option><option value="UNAVAILABLE">Unavailable</option></select></label>
+      <span v-if="!isLoading && !errorMessage" class="customer-result-count" role="status">{{ filteredRows.length }} of {{ rows.length }} {{ heading.toLowerCase() }}</span>
+    </div>
     <div v-if="isLoading" class="dashboard-message" role="status">Loading {{ heading.toLowerCase() }}…</div>
     <div v-else-if="errorMessage" class="form-message form-error" role="alert">{{ errorMessage }}</div>
     <div v-else-if="rows.length === 0" class="ticket-empty-state">
       <h3>No {{ heading.toLowerCase() }} found</h3><p>There are no records to display.</p>
     </div>
+    <div v-else-if="filteredRows.length === 0" class="ticket-empty-state"><h3>No matching {{ heading.toLowerCase() }}</h3><p>Try a different search or filter.</p><button class="button button-secondary" type="button" @click="search = ''; availabilityFilter = 'ALL'">Clear search</button></div>
     <div v-else class="ticket-table-wrap">
       <table class="ticket-table directory-table">
-        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">{{ isTechnicianDirectory ? 'Specialization' : 'Username' }}</th><th v-if="isTechnicianDirectory" scope="col">Availability</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th v-if="!isTechnicianDirectory" scope="col">Contact number</th><th scope="col">{{ isTechnicianDirectory ? 'Specialization' : 'Address' }}</th><th v-if="isTechnicianDirectory" scope="col">Availability</th><th v-if="isTechnicianDirectory" scope="col">Active Assigned Tickets</th><th scope="col">Action</th></tr></thead>
         <tbody>
-          <tr v-for="person in rows" :key="person.id">
-            <td><strong>{{ person.name }}</strong><small>@{{ person.username }}</small></td>
+          <tr v-for="person in filteredRows" :key="person.id">
+            <td><strong>{{ person.name }}</strong></td>
             <td>{{ person.email || '—' }}</td>
+            <td v-if="!isTechnicianDirectory">{{ person.contactNumber || 'Not provided' }}</td>
             <td>{{ person.detail || '—' }}</td>
             <td v-if="isTechnicianDirectory"><span class="assignment-state" :class="person.availability === 'AVAILABLE' ? 'is-active' : 'is-inactive'">{{ person.availability === 'AVAILABLE' ? 'Available' : 'Unavailable' }}</span></td>
+            <td v-if="isTechnicianDirectory">{{ relatedError ? 'Unavailable' : activeCount(person.id) }}</td>
+            <td><button class="dashboard-text-link" type="button" :aria-expanded="selectedPersonId === person.id" @click="selectedPersonId = person.id">View Details</button></td>
           </tr>
         </tbody>
       </table>
       <div class="directory-mobile-list">
-        <article v-for="person in rows" :key="person.id" class="ticket-mobile-card">
-          <h3>{{ person.name }}</h3><p class="directory-username">@{{ person.username }}</p>
+        <article v-for="person in filteredRows" :key="person.id" class="ticket-mobile-card">
+          <h3>{{ person.name }}</h3>
+          <p v-if="!isTechnicianDirectory" class="directory-detail">Contact number: {{ person.contactNumber || 'Not provided' }}</p>
+          <p class="directory-detail">#{{ person.id }} · {{ isTechnicianDirectory ? 'Specialization' : 'Address' }}: {{ person.detail || 'Not provided' }}</p>
+          <p v-if="isTechnicianDirectory" class="directory-detail">Active assigned tickets: {{ relatedError ? 'Unavailable' : activeCount(person.id) }}</p>
+          <button class="dashboard-text-link" type="button" :aria-expanded="selectedPersonId === person.id" @click="selectedPersonId = person.id">View Details</button>
           <a v-if="person.email" class="dashboard-text-link" :href="`mailto:${person.email}`">{{ person.email }}</a>
-          <p class="directory-detail">{{ isTechnicianDirectory ? 'Specialization' : 'Username' }}: {{ person.detail || '—' }}</p>
           <span v-if="isTechnicianDirectory" class="assignment-state" :class="person.availability === 'AVAILABLE' ? 'is-active' : 'is-inactive'">{{ person.availability === 'AVAILABLE' ? 'Available' : 'Unavailable' }}</span>
         </article>
       </div>

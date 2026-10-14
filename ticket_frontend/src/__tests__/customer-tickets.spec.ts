@@ -10,9 +10,12 @@ const ticketApi = vi.hoisted(() => ({
   listTickets: vi.fn(),
   createTicket: vi.fn(),
   getTicket: vi.fn(),
+  updateTicketStatus: vi.fn(),
 }))
 
 vi.mock('@/services/tickets', () => ticketApi)
+vi.mock('@/services/assignments', () => ({ listAssignments: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/services/directories', () => ({ listCustomers: vi.fn().mockResolvedValue([{ id: 4, address: 'Main Campus', contact_number: '09171234567' }]) }))
 
 const mounted: VueWrapper[] = []
 const mountRouter = () => {
@@ -28,6 +31,8 @@ const tickets: Ticket[] = [
 
 describe('customer ticket management', () => {
   beforeEach(async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', '') } })
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() { this.removeAttribute('open') } })
     vi.clearAllMocks()
     ticketApi.listTickets.mockResolvedValue(tickets)
     ticketApi.createTicket.mockResolvedValue(tickets[0])
@@ -41,6 +46,25 @@ describe('customer ticket management', () => {
 
   afterEach(() => mounted.splice(0).forEach((wrapper) => wrapper.unmount()))
 
+  it.each(['/customer', '/customer/tickets'])('opens customer ticket details from %s without leaving the page', async (path) => {
+    const wrapper = mountRouter()
+    await router.push(path)
+    await flushPromises()
+    await wrapper.get(path === '/customer' ? '.dashboard-recent-list button' : '.ticket-table button').trigger('click')
+    await flushPromises()
+    const popup = document.querySelector('dialog')!
+    expect(popup.hasAttribute('open')).toBe(true)
+    expect(popup.textContent).toContain('Wi-Fi is unavailable')
+    expect(popup.querySelector('.assignment-form')).toBeNull()
+    expect(popup.querySelector('.ticket-edit-button')).toBeNull()
+    expect(router.currentRoute.value.path).toBe(path)
+    expect(document.body.style.overflow).toBe('hidden')
+    popup.dispatchEvent(new Event('cancel', { cancelable: true }))
+    await flushPromises()
+    expect(document.querySelector('dialog')).toBeNull()
+    expect(document.body.style.overflow).not.toBe('hidden')
+  })
+
   it('loads customer ticket statistics and recent tickets on the dashboard', async () => {
     const wrapper = mountRouter()
     await router.push('/customer')
@@ -50,7 +74,7 @@ describe('customer ticket management', () => {
     expect(wrapper.get('.dashboard-stat-grid').text()).toContain('2')
     expect(wrapper.get('.dashboard-stat-grid').text()).toContain('1')
     expect(wrapper.get('.dashboard-recent').text()).toContain('Wi-Fi is unavailable')
-    expect(wrapper.get('.dashboard-recent').text()).toContain('In Progress')
+    expect(wrapper.get('.dashboard-recent').text()).toContain('Ongoing')
   })
 
   it('renders the empty ticket list state', async () => {
@@ -110,6 +134,8 @@ describe('customer ticket management', () => {
     expect(ticketApi.createTicket).toHaveBeenCalledWith({
       problem_title: 'Wi-Fi issue',
       problem_description: 'Cannot connect to campus Wi-Fi.',
+      address: 'Main Campus',
+      contact_number: '09171234567',
     })
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/customer/tickets/18'))
     expect(wrapper.text()).toContain('Your ticket was created successfully.')
@@ -138,7 +164,7 @@ describe('customer ticket management', () => {
     expect(ticketApi.getTicket).toHaveBeenCalledWith('18')
     expect(wrapper.text()).toContain('Wi-Fi is unavailable')
     expect(wrapper.text()).toContain('The laptop cannot connect.')
-    expect(wrapper.text()).toContain('In Progress')
+    expect(wrapper.text()).toContain('Ongoing')
   })
 
   it('keeps customer ticket routes restricted to customers', async () => {

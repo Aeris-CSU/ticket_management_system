@@ -15,6 +15,7 @@ export interface LoginCredentials {
 }
 
 export interface RegistrationDetails extends LoginCredentials {
+  contact_number?: string
   email?: string
   address: string
 }

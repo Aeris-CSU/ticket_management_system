@@ -14,6 +14,10 @@ class Assignments(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
+                fields=['technicians'], condition=models.Q(is_active=True),
+                name='one_active_assignment_per_technician',
+            ),
+            models.UniqueConstraint(
                 fields=['tickets'],
                 condition=models.Q(is_active=True),
                 name='one_active_assignment_per_ticket',

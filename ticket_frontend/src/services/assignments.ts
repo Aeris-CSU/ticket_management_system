@@ -20,3 +20,7 @@ export async function reassignTechnician(assignmentId: number, technicianId: num
   })
   return data
 }
+
+export async function unassignTechnician(assignmentId: number) {
+  await api.delete(`assignments/${assignmentId}/`)
+}

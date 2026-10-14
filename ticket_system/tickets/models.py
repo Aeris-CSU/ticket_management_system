@@ -13,6 +13,8 @@ class Tickets(models.Model):
     id = models.AutoField(primary_key=True)
     problem_title = models.CharField(max_length=200)
     problem_description = models.TextField()
+    contact_number = models.CharField(max_length=30, blank=True, default='')
+    address = models.CharField(max_length=100, blank=True, default='')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -12,7 +12,6 @@ const navigation: Record<UserRole, { label: string; path?: string }[]> = {
   ADMIN: [
     { label: 'Dashboard', path: '/admin' },
     { label: 'All Tickets', path: '/admin/tickets' },
-    { label: 'Assignments', path: '/admin/assignments' },
     { label: 'Customers', path: '/admin/customers' },
     { label: 'Technicians', path: '/admin/technicians' },
   ],

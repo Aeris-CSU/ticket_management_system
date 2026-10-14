@@ -21,6 +21,25 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(user.role, Authentication.ROLE_CHOICES.CUSTOMER)
         self.assertTrue(Customers.objects.filter(user=user).exists())
         self.assertNotIn('password', response.data)
+        self.assertEqual(Customers.objects.get(user=user).contact_number, '')
+
+    def test_customer_contact_number_registration_update_and_list(self):
+        response = self.client.post('/api/register/', {
+            'username': 'contactcustomer', 'password': 'CustomerPass123!x',
+            'address': 'School', 'contact_number': '+63 917 123 4567',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        customer = Customers.objects.get(user__username='contactcustomer')
+        self.assertEqual(customer.contact_number, '+63 917 123 4567')
+        self.client.force_authenticate(user=customer.user)
+        response = self.client.put(f'/api/customers/{customer.pk}/', {
+            'contact_number': '09171234568',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        customer.refresh_from_db()
+        self.assertEqual(customer.contact_number, '09171234568')
+        response = self.client.get('/api/customers/')
+        self.assertEqual(response.data[0]['contact_number'], '09171234568')
 
     def test_public_technician_registration_is_blocked(self):
         response = self.client.post('/api/register-technicians/', {

@@ -2,13 +2,13 @@
 const stats = [
   { label: 'Total tickets', value: '24', tone: 'blue', icon: '▤' },
   { label: 'Open', value: '8', tone: 'amber', icon: '◷' },
-  { label: 'In progress', value: '10', tone: 'violet', icon: '↗' },
+  { label: 'Ongoing', value: '10', tone: 'violet', icon: '↗' },
   { label: 'Resolved', value: '6', tone: 'green', icon: '✓' },
 ]
 
 const recentTickets = [
   { id: 'TK-1024', title: 'Unable to connect to Wi-Fi', team: 'Network support', status: 'Open', tone: 'amber' },
-  { id: 'TK-1023', title: 'Printer not responding', team: 'Hardware support', status: 'In progress', tone: 'blue' },
+  { id: 'TK-1023', title: 'Printer not responding', team: 'Hardware support', status: 'Ongoing', tone: 'blue' },
   { id: 'TK-1022', title: 'Reset account password', team: 'Account support', status: 'Resolved', tone: 'green' },
 ]
 </script>

@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from authentication.models import Authentication
 from authentication.permissions import AdminPermission, CustomerPermission, TechnicianPermission
 from assignments.models import Assignments
+from assignments.services import release_technicians
 from tickets.models import Tickets
 from .serializers import TicketStatusSerializer, TicketsSerializer
 
@@ -121,5 +122,7 @@ class TicketStatusUpdate(TicketDetailBase):
             ticket.status = new_status
             ticket.save(update_fields=['status', 'updated_at'])
             if new_status in (Tickets.Status.RESOLVED, Tickets.Status.CANCELLED):
+                technician_ids = list(Assignments.objects.filter(tickets=ticket, is_active=True).values_list('technicians_id', flat=True))
                 Assignments.objects.filter(tickets=ticket, is_active=True).update(is_active=False)
+                release_technicians(technician_ids)
         return Response(TicketsSerializer(ticket).data)

@@ -41,6 +41,8 @@ class AssignmentApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data['is_active'])
         self.assertEqual(Tickets.objects.get(pk=self.ticket.pk).status, Tickets.Status.ASSIGNED)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.availability_status, Technicians.Availability.UNAVAILABLE)
 
     def test_complete_ticket_lifecycle_with_jwt_from_customer_report_to_resolution(self):
         customer_login = self.client.post('/api/login/', {
@@ -77,6 +79,8 @@ class AssignmentApiTests(APITestCase):
         self.assertEqual(resolved.status_code, status.HTTP_200_OK)
         self.assertEqual(resolved.data['status'], Tickets.Status.RESOLVED)
         self.assertFalse(Assignments.objects.get(pk=assigned.data['id']).is_active)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.availability_status, Technicians.Availability.AVAILABLE)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {customer_login.data['tokens']['access']}")
         customer_tickets = self.client.get('/api/tickets/')
@@ -116,6 +120,10 @@ class AssignmentApiTests(APITestCase):
         new = Assignments.objects.get(pk=response.data['id'])
         self.assertTrue(new.is_active)
         self.assertEqual(new.technicians_id, self.other_tech.pk)
+        self.tech.refresh_from_db()
+        self.other_tech.refresh_from_db()
+        self.assertEqual(self.tech.availability_status, Technicians.Availability.AVAILABLE)
+        self.assertEqual(self.other_tech.availability_status, Technicians.Availability.UNAVAILABLE)
         self.assertEqual(Tickets.objects.get(pk=self.ticket.pk).status, Tickets.Status.ASSIGNED)
 
         self.client.force_authenticate(self.tech.user)
@@ -144,6 +152,31 @@ class AssignmentApiTests(APITestCase):
         self.assertEqual(Assignments.objects.count(), 1)
         self.assertFalse(Assignments.objects.get().is_active)
         self.assertEqual(Tickets.objects.get(pk=self.ticket.pk).status, Tickets.Status.OPEN)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.availability_status, Technicians.Availability.AVAILABLE)
+
+    def test_busy_technician_cannot_receive_another_ticket_or_be_marked_available(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.assign().status_code, status.HTTP_201_CREATED)
+        another = Tickets.objects.create(problem_title='Printer', problem_description='Offline', customer=self.customer)
+        denied = self.client.post('/api/assignments/', {'tickets': another.pk, 'technicians': self.tech.pk}, format='json')
+        self.assertEqual(denied.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Assignments.objects.filter(technicians=self.tech, is_active=True).count(), 1)
+        profile = self.client.put(f'/api/technicians/{self.tech.pk}/', {'availability_status': 'AVAILABLE'}, format='json')
+        self.assertEqual(profile.status_code, status.HTTP_400_BAD_REQUEST)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.availability_status, Technicians.Availability.UNAVAILABLE)
+
+    def test_cancelling_releases_technician_for_a_new_ticket(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.assign().status_code, status.HTTP_201_CREATED)
+        cancelled = self.client.patch(f'/api/tickets/{self.ticket.pk}/status/', {'status': 'CANCELLED'}, format='json')
+        self.assertEqual(cancelled.status_code, status.HTTP_200_OK)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.availability_status, Technicians.Availability.AVAILABLE)
+        another = Tickets.objects.create(problem_title='Printer', problem_description='Offline', customer=self.customer)
+        assigned = self.client.post('/api/assignments/', {'tickets': another.pk, 'technicians': self.tech.pk}, format='json')
+        self.assertEqual(assigned.status_code, status.HTTP_201_CREATED)
 
     def test_nonexistent_assignment_returns_404(self):
         self.client.force_authenticate(self.admin)

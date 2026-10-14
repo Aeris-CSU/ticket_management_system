@@ -41,6 +41,21 @@ class TicketApiTests(APITestCase):
         self.assertEqual([row['id'] for row in listing.data], [created.data['id']])
         self.assertEqual(self.client.get(f'/api/tickets/{other_ticket.pk}/').status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_ticket_preserves_submitted_contact_details_when_profile_changes(self):
+        self.client.force_authenticate(self.customer.user)
+        response = self.client.post('/api/tickets/', {
+            'problem_title': 'On-site support', 'problem_description': 'Printer offline',
+            'contact_number': '+63 917 123 4567', 'address': 'Room 204',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.customer.address = 'New profile address'
+        self.customer.contact_number = '09999999999'
+        self.customer.save()
+        detail = self.client.get(f"/api/tickets/{response.data['id']}/")
+        self.assertEqual(detail.data['address'], 'Room 204')
+        self.assertEqual(detail.data['customer_address'], 'Room 204')
+        self.assertEqual(detail.data['contact_number'], '+63 917 123 4567')
+
     def test_ticket_required_fields_and_customer_cannot_impersonate_or_set_status(self):
         self.client.force_authenticate(self.customer.user)
         missing = self.client.post('/api/tickets/', {'problem_title': 'No details'}, format='json')

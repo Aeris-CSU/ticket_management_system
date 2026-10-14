@@ -7,11 +7,16 @@ export interface Ticket {
   status: TicketStatus
   customer: number
   customer_name: string
+  customer_address?: string
+  address?: string
+  contact_number?: string
   created_at: string
   updated_at: string
 }
 
 export interface CreateTicketPayload {
+  address?: string
+  contact_number?: string
   problem_title: string
   problem_description: string
 }

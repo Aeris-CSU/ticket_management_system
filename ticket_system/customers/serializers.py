@@ -15,7 +15,7 @@ class CustomersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customers
-        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email', 'address']
+        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email', 'address', 'contact_number']
 
     @transaction.atomic
     def create(self, validated_data):
@@ -35,6 +35,7 @@ class CustomersSerializer(serializers.ModelSerializer):
         customer = Customers.objects.create(
             user=user,
             address=address_data,
+            contact_number=validated_data.get('contact_number', ''),
         )
         return customer
 
@@ -85,4 +86,4 @@ class CustomerListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customers
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'address']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'address', 'contact_number']

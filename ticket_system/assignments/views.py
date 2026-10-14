@@ -10,6 +10,7 @@ from authentication.permissions import AdminPermission, CustomerPermission, Tech
 from tickets.models import Tickets
 from .models import Assignments
 from .serializers import AssignmentsSerializer
+from .services import release_technicians
 
 
 class AssignmentBase(APIView):
@@ -26,6 +27,7 @@ class AssignmentBase(APIView):
                 return Response({'detail': 'Only assigned tickets can be unassigned. Reassign or resolve ongoing tickets.'}, status=status.HTTP_409_CONFLICT)
             assignment.is_active = False
             assignment.save(update_fields=['is_active'])
+            release_technicians([assignment.technicians_id])
             ticket.status = Tickets.Status.OPEN
             ticket.save(update_fields=['status', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)

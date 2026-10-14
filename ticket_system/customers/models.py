@@ -4,6 +4,7 @@ from django.conf import settings
 class Customers(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     address = models.CharField(max_length=100)
+    contact_number = models.CharField(max_length=30, blank=True, default='')
 
 
 #
