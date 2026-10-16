@@ -154,7 +154,7 @@ async function submitTechnician() {
     <p v-if="createMessage" class="form-message form-success" role="status">{{ createMessage }}</p>
     <p v-if="relatedError" class="form-message form-error" role="alert">{{ relatedError }}</p>
     <DirectoryDetailsModal v-if="selectedPerson" :title="isTechnicianDirectory ? 'Technician Details' : 'Customer Details'" @close="selectedPersonId = null">
-    <section class="ticket-detail-card" :class="{ 'customer-profile-card': !isTechnicianDirectory }" aria-labelledby="person-details-heading">
+    <section class="ticket-detail-card customer-profile-card" aria-labelledby="person-details-heading">
       <template v-if="!isTechnicianDirectory">
         <div class="customer-profile-heading">
           <span class="customer-profile-avatar" aria-hidden="true">{{ selectedPerson.name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() }}</span>
@@ -167,13 +167,20 @@ async function submitTechnician() {
         </dl>
       </template>
       <template v-else>
-        <div class="ticket-detail-top"><h3 id="person-details-heading">{{ selectedPerson.name }}</h3><span class="ticket-table-id">#{{ selectedPerson.id }}</span></div>
-        <p class="directory-detail">@{{ selectedPerson.username }} ? {{ selectedPerson.email || 'No email provided' }}</p>
-        <p class="directory-detail">Specialization: {{ selectedPerson.detail || 'Not provided' }}</p>
-        <p class="directory-detail">Availability: <span class="assignment-state" :class="selectedPerson.availability === 'AVAILABLE' ? 'is-active' : 'is-inactive'">{{ selectedPerson.availability === 'AVAILABLE' ? 'Available' : 'Unavailable' }}</span></p>
+        <div class="customer-profile-heading technician-profile-heading">
+          <span class="customer-profile-avatar" aria-hidden="true">{{ selectedPerson.name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() }}</span>
+          <div class="technician-profile-name"><h3 id="person-details-heading">{{ selectedPerson.name }}</h3><p class="customer-profile-caption">Technician account</p></div>
+          <span class="assignment-state" :class="selectedPerson.availability === 'AVAILABLE' ? 'is-active' : 'is-inactive'">{{ selectedPerson.availability === 'AVAILABLE' ? 'Available' : 'Unavailable' }}</span>
+        </div>
+        <dl class="customer-profile-info">
+          <div><dt>Username</dt><dd>{{ selectedPerson.username }}</dd></div>
+          <div><dt>Email address</dt><dd>{{ selectedPerson.email || 'Not provided' }}</dd></div>
+          <div><dt>Specialization</dt><dd>{{ selectedPerson.detail || 'Not provided' }}</dd></div>
+          <div><dt>Active assigned tickets</dt><dd>{{ relatedError ? 'Unavailable' : relatedTickets.length }}</dd></div>
+        </dl>
       </template>
-      <h4>{{ isTechnicianDirectory ? 'Active assigned tickets' : 'Submitted support tickets' }} <span v-if="!isTechnicianDirectory && !relatedError" class="queue-count">{{ relatedTickets.length }}</span></h4>
-      <p v-if="!relatedError && !relatedTickets.length" class="directory-detail" :class="{ 'customer-ticket-empty': !isTechnicianDirectory }">{{ isTechnicianDirectory ? 'No tickets to display.' : 'This customer has not submitted any support tickets yet.' }}</p>
+      <h4>{{ isTechnicianDirectory ? 'Active assigned tickets' : 'Submitted support tickets' }} <span v-if="!relatedError" class="queue-count">{{ relatedTickets.length }}</span></h4>
+      <p v-if="!relatedError && !relatedTickets.length" class="directory-detail customer-ticket-empty">{{ isTechnicianDirectory ? 'No tickets to display.' : 'This customer has not submitted any support tickets yet.' }}</p>
       <p v-if="relatedError" class="form-message form-error" role="alert">{{ relatedError }}</p>
       <ul v-if="!relatedError" class="directory-ticket-links"><li v-for="item in relatedTickets" :key="item.id"><RouterLink class="dashboard-text-link" :to="`/admin/tickets/${item.id}`">#{{ item.id }} — {{ item.problem_title }}</RouterLink><TicketStatusBadge :status="item.status" /></li></ul>
     </section>

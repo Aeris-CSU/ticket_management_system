@@ -1450,6 +1450,9 @@ html[data-theme='dark'] .customers-directory .directory-table th { background: #
 .customer-profile-avatar { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px; background: #eaf1ff; color: #3d67ad; font-size: 16px; font-weight: 600; }
 .directory-details-modal .customer-profile-heading h3 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .customer-profile-caption { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.technician-profile-heading { flex-wrap: wrap; }
+.technician-profile-name { flex: 1; min-width: 140px; }
+.technician-profile-heading > .assignment-state { margin-left: auto; }
 .customer-profile-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; margin: 22px 0 0; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: #f8faff; }
 .customer-profile-info > div { display: grid; gap: 6px; }
 .customer-profile-info dt { color: var(--muted); font-size: 11px; }
