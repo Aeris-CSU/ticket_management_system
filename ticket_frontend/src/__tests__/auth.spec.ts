@@ -58,6 +58,20 @@ describe('authentication flow', () => {
     expect(wrapper.text()).toContain('Enter your username and password.')
   })
 
+  it('requires a contact number and toggles confirmation visibility independently', async () => {
+    const wrapper = mountRouter()
+    await router.push('/register')
+    await flushPromises()
+    expect(wrapper.get('input[name="contact_number"]').attributes('required')).toBeDefined()
+    await wrapper.get('input[name="confirm-password"]').setValue('ExamplePass123!')
+    await wrapper.get('button[aria-label="Show confirm password"]').trigger('click')
+    expect(wrapper.get('input[name="confirm-password"]').attributes('type')).toBe('text')
+    expect(wrapper.get('input[name="new-password"]').attributes('type')).toBe('password')
+    await wrapper.get('button[aria-label="Hide confirm password"]').trigger('click')
+    expect(wrapper.get('input[name="confirm-password"]').attributes('type')).toBe('password')
+    expect((wrapper.get('input[name="confirm-password"]').element as HTMLInputElement).value).toBe('ExamplePass123!')
+  })
+
   it('logs in and sends customers to their role route', async () => {
     const wrapper = mountRouter()
     await router.push('/login')
@@ -112,12 +126,13 @@ describe('authentication flow', () => {
     await wrapper.get('input[name="email"]').setValue('')
     await wrapper.get('input[name="address"]').setValue('Campus')
     await wrapper.get('input[name="new-password"]').setValue('ExamplePass123!')
+    await wrapper.get('input[name="contact_number"]').setValue('09171234567')
     await wrapper.get('input[name="confirm-password"]').setValue('ExamplePass123!')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(mocks.registerRequest).toHaveBeenCalledWith({
-      username: 'newcustomer', email: undefined, address: 'Campus', password: 'ExamplePass123!',
+      username: 'newcustomer', email: undefined, address: 'Campus', contact_number: '09171234567', password: 'ExamplePass123!',
     })
     expect(router.currentRoute.value.path).toBe('/login')
     expect(router.currentRoute.value.query.registered).toBe('1')
@@ -131,6 +146,7 @@ describe('authentication flow', () => {
     await wrapper.get('input[name="username"]').setValue('newcustomer')
     await wrapper.get('input[name="address"]').setValue('Campus')
     await wrapper.get('input[name="new-password"]').setValue('ExamplePass123!')
+    await wrapper.get('input[name="contact_number"]').setValue('09171234567')
     await wrapper.get('input[name="confirm-password"]').setValue('different-pass')
     await wrapper.get('form').trigger('submit')
 
@@ -146,6 +162,7 @@ describe('authentication flow', () => {
     await wrapper.get('input[name="username"]').setValue('already-used')
     await wrapper.get('input[name="address"]').setValue('Campus')
     await wrapper.get('input[name="new-password"]').setValue('ExamplePass123!')
+    await wrapper.get('input[name="contact_number"]').setValue('09171234567')
     await wrapper.get('input[name="confirm-password"]').setValue('ExamplePass123!')
     await wrapper.get('form').trigger('submit')
     await flushPromises()

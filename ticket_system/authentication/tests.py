@@ -14,6 +14,7 @@ class AuthenticationApiTests(APITestCase):
     def test_public_registration_creates_customer_only(self):
         response = self.client.post('/api/register/', {
             'username': 'newcustomer', 'password': 'CustomerPass123!x', 'address': 'School',
+            'contact_number': '09171234567',
             'role': 'ADMIN', 'is_superuser': True,
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -21,7 +22,17 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(user.role, Authentication.ROLE_CHOICES.CUSTOMER)
         self.assertTrue(Customers.objects.filter(user=user).exists())
         self.assertNotIn('password', response.data)
-        self.assertEqual(Customers.objects.get(user=user).contact_number, '')
+        self.assertEqual(Customers.objects.get(user=user).contact_number, '09171234567')
+
+    def test_registration_requires_contact_number(self):
+        for contact in (None, '', '   '):
+            data = {'username': 'missingcontact', 'password': 'CustomerPass123!x', 'address': 'School'}
+            if contact is not None:
+                data['contact_number'] = contact
+            response = self.client.post('/api/register/', data, format='json')
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('contact_number', response.data)
+        self.assertFalse(Authentication.objects.filter(username='missingcontact').exists())
 
     def test_admin_changes_password_and_old_password_stops_working(self):
         old_login = self.client.post('/api/login/', {'username': 'admin', 'password': 'AdminPass123!x'}).data

@@ -58,6 +58,8 @@ class CustomersSerializer(serializers.ModelSerializer):
         return instance
 
     def validate(self, attrs):
+        if not self.instance and not attrs.get('contact_number', '').strip():
+            raise serializers.ValidationError({'contact_number': 'Contact number is required.'})
         user_data = attrs.get('user', {})
         username = user_data.get('username')
         if username:

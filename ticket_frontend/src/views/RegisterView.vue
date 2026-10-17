@@ -13,13 +13,14 @@ const contactNumber = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 const submitting = ref(false)
 const errorMessage = ref('')
 
 async function submitRegistration() {
   if (submitting.value) return
   errorMessage.value = ''
-  if (!username.value.trim() || !address.value.trim() || !password.value || !confirmPassword.value) {
+  if (!username.value.trim() || !address.value.trim() || !contactNumber.value.trim() || !password.value || !confirmPassword.value) {
     errorMessage.value = 'Complete all required fields.'
     return
   }
@@ -38,7 +39,7 @@ async function submitRegistration() {
       username: username.value.trim(),
       email: email.value.trim() || undefined,
       address: address.value.trim(),
-      contact_number: contactNumber.value.trim() || undefined,
+      contact_number: contactNumber.value.trim(),
       password: password.value,
     })
     await router.replace({ path: '/login', query: { registered: '1' } })
@@ -79,8 +80,8 @@ async function submitRegistration() {
           <input v-model="address" type="text" name="address" autocomplete="street-address" required maxlength="100">
         </label>
         <label class="auth-field">
-          <span>Contact number <span class="optional-label">(optional)</span></span>
-          <input v-model="contactNumber" type="tel" name="contact_number" autocomplete="tel" maxlength="30" placeholder="e.g. +63 917 123 4567">
+          <span>Contact number</span>
+          <input v-model="contactNumber" type="tel" name="contact_number" autocomplete="tel" required maxlength="30" placeholder="e.g. +63 917 123 4567">
         </label>
         <label class="auth-field">
           <span>Password</span>
@@ -93,7 +94,10 @@ async function submitRegistration() {
         </label>
         <label class="auth-field">
           <span>Confirm password</span>
-          <input v-model="confirmPassword" type="password" name="confirm-password" autocomplete="new-password" required minlength="8">
+          <span class="password-input-wrap">
+            <input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" name="confirm-password" autocomplete="new-password" required minlength="8">
+            <button class="password-toggle" type="button" :aria-label="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword">{{ showConfirmPassword ? 'Hide' : 'Show' }}</button>
+          </span>
         </label>
         <button class="button button-primary auth-submit" type="submit" :disabled="submitting">
           {{ submitting ? 'Creating account...' : 'Create account' }}
