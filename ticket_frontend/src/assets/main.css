@@ -1270,6 +1270,9 @@ svg {
 .dashboard-account-copy { display: grid; gap: 3px; min-width: 90px; }
 .dashboard-account-copy strong { max-width: 180px; overflow: hidden; color: #334155; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-account-copy small { color: var(--muted); font-size: 10px; }
+.dashboard-profile-button { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border: 1px solid transparent; border-radius: 10px; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.dashboard-profile-button:hover { background: rgb(96 145 222 / 8%); border-color: var(--border); }
+.dashboard-profile-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .dashboard-logout { min-height: 38px; margin-left: 8px; padding: 0 12px; color: #475569; background: white; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .dashboard-logout:hover { color: var(--blue); border-color: #bfdbfe; background: #f8fbff; }
 .dashboard-menu-button { display: none; width: 42px; height: 42px; align-items: center; justify-content: center; background: white; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }

@@ -48,6 +48,7 @@ async function submitLogin() {
       <p class="auth-intro">Access your support account to follow tickets and updates.</p>
 
       <p v-if="registered" class="form-message form-success" role="status">Your account was created. You can sign in now.</p>
+      <p v-if="route.query.passwordChanged === '1'" class="form-message form-success" role="status">Password updated. Sign in with your new password.</p>
       <p v-if="errorMessage" class="form-message form-error" role="alert">{{ errorMessage }}</p>
 
       <form class="auth-form" @submit.prevent="submitLogin">

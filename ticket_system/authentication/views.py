@@ -8,6 +8,21 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from authentication.serializers import AuthenticationSerializer
 from .models import Authentication
 from .permissions import AdminPermission
+from django.db import transaction
+from .serializers import ChangePasswordSerializer
+
+
+class ChangePassword(APIView):
+    permission_classes = [AdminPermission]
+
+    def post(self, request):
+        with transaction.atomic():
+            user = Authentication.objects.select_for_update().get(pk=request.user.pk)
+            serializer = ChangePasswordSerializer(data=request.data, context={'user': user})
+            serializer.is_valid(raise_exception=True)
+            user.set_password(serializer.validated_data['new_password'])
+            user.save(update_fields=['password', 'updated_at'])
+        return Response({'detail': 'Password updated. Please sign in again.'})
 
 class Login(APIView):
     permission_classes = [AllowAny]

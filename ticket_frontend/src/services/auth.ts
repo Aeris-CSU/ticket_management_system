@@ -22,6 +22,10 @@ export async function currentUserRequest() {
   return data
 }
 
+export async function changePasswordRequest(payload: { current_password: string; new_password: string; confirm_password: string }) {
+  await api.post('change-password/', payload)
+}
+
 export function readableAuthError(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) return fallback
 

@@ -91,33 +91,24 @@ python manage.py showmigrations
 
 Applied migrations should have `[X]` beside them. A fresh clone uses the migration files already committed to the repository, so `makemigrations` is not needed for initial setup. Do not delete migrations or run the migration-removal script as part of setup.
 
-### 7. Create the first administrator
+### 7. Sign in with the predefined local administrator
 
-Create a local superuser and follow the username, email, and password prompts:
+Running `python manage.py migrate` creates this administrator for local testing:
 
-Your existing administrator is stored in your own database. Cloning the repository does not copy that account, so each teammate must create an administrator in their local database. If you already have a local superuser, skip its creation and set its role using the next command.
+- Username: `localadmin`
+- Password: `TickarlaAdmin123!`
 
-```powershell
-python manage.py createsuperuser --username admin
-```
+Each teammate gets their own account in their own laptop's database. No `createsuperuser` or role-setting command is needed for this account. It has the application's `ADMIN` role; it is not a Django superuser.
 
-When the terminal shows `Password:` and `Password (again):`, type your chosen password and press Enter each time. The terminal does not display characters or asterisks while you type; this is normal. Remember this password for the login page. The command does not provide a default password.
+To change the password, sign in, click your profile (avatar/name) in the dashboard header, and enter the current password, new password, and confirmation. You will return to login after saving.
 
-If the account already exists but you do not know its password, set a new one:
+The default password is stored as a hash in the database. Running migrations again does not reset a changed password or overwrite an existing `localadmin` account.
 
-```powershell
-python manage.py changepassword admin
-```
-
-Enter the new password twice when prompted. Replace `admin` with your actual username. The role-setting command below changes only the role; it does not create or change the password.
-
-This project checks its custom `role` field for API access. Django's superuser flag alone does not assign the `ADMIN` role. Set it explicitly for the account you just created:
+If you forget your changed password, run this from the backend folder:
 
 ```powershell
-python manage.py shell -c "from authentication.models import Authentication; account = Authentication.objects.get(username='admin'); account.role = Authentication.ROLE_CHOICES.ADMIN; account.save(update_fields=['role'])"
+python manage.py changepassword localadmin
 ```
-
-If you chose a different username, replace `admin` in both commands. Customers can register through the public customer registration API. Technician accounts must be created by a logged-in administrator.
 
 ### 8. Start the backend
 
@@ -130,7 +121,7 @@ Leave this terminal running. The backend listens at `http://127.0.0.1:8000/`, wi
 To verify login from a second PowerShell terminal, enter the password you chose for your local administrator:
 
 ```powershell
-$loginCredential = Get-Credential -UserName admin -Message 'Enter your local administrator password'
+$loginCredential = Get-Credential -UserName localadmin -Message 'Enter your local administrator password'
 $loginBody = @{
     username = $loginCredential.UserName
     password = $loginCredential.GetNetworkCredential().Password
