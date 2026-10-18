@@ -2399,3 +2399,17 @@ html[data-theme='dark'] .dashboard-quick-icon { color: #a7c9f8; }
   .dashboard-recent-row .dashboard-ticket-id { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
   .dashboard-recent-row .dashboard-ticket-title { grid-column: 1; }
 }
+
+/* Match the landing features to the selected theme. */
+html:not([data-theme='dark']) .landing-page .features-section { background: linear-gradient(180deg, #f5f8fe, #edf3fc); border-block: 1px solid #dfe8f5; }
+html:not([data-theme='dark']) .landing-page .features-section .section-heading h2 { color: #14243e; }
+html:not([data-theme='dark']) .landing-page .features-section .section-heading h2 span { color: #3265be; }
+html:not([data-theme='dark']) .landing-page .features-section .section-heading p { color: #61738d; }
+html:not([data-theme='dark']) .landing-page .features-section .eyebrow { color: #426ba9; }
+html:not([data-theme='dark']) .landing-page .features-section .feature-card { background: #ffffff; border-color: #dce5f2; box-shadow: 0 8px 24px rgb(30 64 110 / 5%); }
+html:not([data-theme='dark']) .landing-page .features-section .feature-card h3 { color: #182b47; }
+html:not([data-theme='dark']) .landing-page .features-section .feature-card p { color: #60728a; }
+html:not([data-theme='dark']) .landing-page .features-section .feature-number { color: #6d88af; }
+html:not([data-theme='dark']) .landing-page .features-section .feature-icon { color: #3569bd; background: #edf3fd; border-color: #d7e3f6; }
+html:not([data-theme='dark']) .landing-page .features-section .feature-card:nth-child(2) .feature-icon { color: #197e73; background: #eaf7f3; border-color: #d2ece5; }
+html:not([data-theme='dark']) .landing-page .features-section .feature-card:nth-child(3) .feature-icon { color: #7954b2; background: #f2edfc; border-color: #e4daf6; }

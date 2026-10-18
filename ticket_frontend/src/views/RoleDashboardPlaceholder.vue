@@ -129,7 +129,7 @@ const overview = computed(() => ({
         </article>
       </div>
       <div v-if="role !== 'TECHNICIAN'" class="dashboard-workspace-panels">
-      <TicketStatusOverview v-if="role !== 'TECHNICIAN' && hasLoaded && !isLoading && !errorMessage" :tickets="tickets" />
+      <TicketStatusOverview v-if="hasLoaded && !isLoading && !errorMessage" :tickets="tickets" />
       <div class="dashboard-action-panel"><div class="dashboard-action-heading"><span>YOUR WORKSPACE</span><h3>What would you like to do?</h3></div>
       <nav class="dashboard-quick-actions" aria-label="Workspace shortcuts">
         <RouterLink v-for="action in quickActions" :key="action.path" :to="action.path" class="dashboard-quick-card">
