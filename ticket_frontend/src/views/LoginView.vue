@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AuthBrandPanel from '@/components/AuthBrandPanel.vue'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -34,7 +35,9 @@ async function submitLogin() {
 </script>
 
 <template>
-  <main class="auth-page">
+  <main class="auth-page auth-designed">
+    <div class="auth-layout">
+      <AuthBrandPanel  />
     <section class="auth-card" aria-labelledby="login-heading">
       <RouterLink class="brand auth-brand" to="/" aria-label="Tickarla home">
         <span class="brand-mark" aria-hidden="true">
@@ -73,5 +76,6 @@ async function submitLogin() {
       <p class="auth-switch">New to Tickarla? <RouterLink to="/register">Create an account</RouterLink></p>
       <RouterLink class="auth-home-link" to="/">Back to home</RouterLink>
     </section>
+    </div>
   </main>
 </template>

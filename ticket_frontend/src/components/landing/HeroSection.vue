@@ -19,6 +19,7 @@ import TicketPreview from './TicketPreview.vue'
         <div class="hero-note"><span class="note-check" aria-hidden="true">✓</span> A clearer way to get the help you need</div>
       </div>
       <div class="hero-visual">
+        <div class="hero-preview-caption"><span></span> YOUR SUPPORT WORKSPACE</div>
         <TicketPreview />
       </div>
     </div>
