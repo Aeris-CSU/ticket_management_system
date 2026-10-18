@@ -5,7 +5,6 @@ class Customers(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     address = models.CharField(max_length=100)
 
-
 #
 #   username = validated_data['username'],
 #             password = validated_data['password'],

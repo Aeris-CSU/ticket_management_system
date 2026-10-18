@@ -9,17 +9,46 @@ from django.shortcuts import get_object_or_404
 
 
 class TicketsView(APIView):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
+
     def get(self, request):
-        tickets = Tickets.objects.all()
+        # Customers only see their own tickets
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            customer_profile = getattr(request.user, 'customers', None) or getattr(request.user, 'customer', None)
+            if not customer_profile:
+                from customers.models import Customers
+                customer_profile = Customers.objects.filter(user=request.user).first()
+
+            if customer_profile:
+                tickets = Tickets.objects.filter(customer=customer_profile)
+            else:
+                tickets = Tickets.objects.none()
+        else:
+            # Admins and Technicians see all tickets
+            tickets = Tickets.objects.all()
+
         serializer = TicketsSerializer(tickets, many=True)
         return Response(serializer.data)
 
-
 class TicketsCreate(APIView):
     permission_classes = [AdminPermission | CustomerPermission]
+
     def post(self, request):
-        serializer = TicketsSerializer(data=request.data)
+        data = request.data.copy()
+
+        # If a Customer is logged in, attach their Customers profile ID automatically
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            customer_profile = getattr(request.user, 'customers', None) or getattr(request.user, 'customer', None)
+            if not customer_profile:
+                # If no linked customer row exists yet, get or create it
+                from customers.models import Customers
+                customer_profile, _ = Customers.objects.get_or_create(
+                    user=request.user,
+                    defaults={'address': 'Not specified'}
+                )
+            data['customer'] = customer_profile.id
+
+        serializer = TicketsSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -46,42 +75,46 @@ class TicketsDelete(APIView):
         ticket.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 class TicketsDetail(APIView):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
+
     def get(self, request, pk):
-        try:
-            ticket = Tickets.objects.get(pk=pk)
-        except Tickets.DoesNotExist:
-            return Response(
-                data = {"message" : "Ticket does not exist"},
-                status = status.HTTP_404_NOT_FOUND
-            )
+        ticket = get_object_or_404(Tickets, pk=pk)
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            self.check_object_permissions(request, ticket)
         serializer = TicketsSerializer(ticket)
         return Response(serializer.data)
 
     def put(self, request, pk):
-        try:
-            ticket = Tickets.objects.get(pk=pk)
-        except Tickets.DoesNotExist:
-            return Response(
-                data = {"message" : "Ticket does not exist"},
-                status = status.HTTP_404_NOT_FOUND
-            )
-        serializer = TicketsSerializer(ticket, data=request.data, partial= True)
+        ticket = get_object_or_404(Tickets, pk=pk)
+
+        # 1. Enforce ownership check for customer updates
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
+            self.check_object_permissions(request, ticket)
+
+        serializer = TicketsSerializer(ticket, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        # 2. Return 400 Bad Request if validation fails
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        try:
-            ticket = Tickets.objects.get(pk=pk)
-        except Tickets.DoesNotExist:
+        ticket = get_object_or_404(Tickets, pk=pk)
+
+        # 3. Block customers from deleting tickets entirely
+        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
             return Response(
-                data = {"message" : "Ticket does not exist"},
-                status = status.HTTP_404_NOT_FOUND
+                data={"message": "Customers are not allowed to delete tickets."},
+                status=status.HTTP_403_FORBIDDEN
             )
-        serializer = TicketsSerializer(ticket)
+
+        self.check_object_permissions(request, ticket)
+
+        # 4. Perform actual database deletion
+        ticket.delete()
         return Response(
-            data = {"message" : "Ticket successfully deleted"},
-            status = status.HTTP_204_NO_CONTENT
+            data={"message": "Ticket successfully deleted"},
+            status=status.HTTP_204_NO_CONTENT
         )

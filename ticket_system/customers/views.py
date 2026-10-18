@@ -12,7 +12,7 @@ from authentication.permissions import *
 from django.shortcuts import get_object_or_404
 
 class CustomersView(APIView):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
     def get(self, request):
         customers = Customers.objects.select_related('user').all()
         serializer = CustomerListSerializer(customers, many=True)
