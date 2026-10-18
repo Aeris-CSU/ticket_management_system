@@ -809,7 +809,7 @@ svg {
 .section-heading > p {
   max-width: 540px;
   margin: 14px auto 0;
-  color: var(--muted);
+  color: black;
   font-size: 15px;
   line-height: 1.7;
 }
@@ -1817,6 +1817,7 @@ html[data-theme='dark'] .dashboard-nav-item.is-active { color: #93c5fd; backgrou
 html[data-theme='dark'] .hero-description,
 html[data-theme='dark'] .hero-note,
 html[data-theme='dark'] .feature-card p,
+html[data-theme='dark'] .feature-card h3 {color: #ffffff}
 html[data-theme='dark'] .about-copy > p,
 html[data-theme='dark'] .about-points small,
 html[data-theme='dark'] .footer-inner > p,
@@ -1854,6 +1855,7 @@ html[data-theme='dark'] .about-visual,
 html[data-theme='dark'] .cta-card { background: #14233a; border-color: #2a4262; }
 html[data-theme='dark'] .cta-card h2,
 html[data-theme='dark'] .section-heading h2,
+html[data-theme='dark'] .section-heading > p {color: white;}
 html[data-theme='dark'] .about-copy h2,
 html[data-theme='dark'] .hero-copy h1,
 html[data-theme='dark'] .auth-card h1 { color: var(--navy); }
