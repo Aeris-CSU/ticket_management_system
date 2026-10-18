@@ -5,6 +5,7 @@ import { listTickets } from '@/services/tickets'
 import { listAssignments } from '@/services/assignments'
 import { readableAuthError } from '@/services/auth'
 import TicketStatusBadge from '@/components/dashboard/TicketStatusBadge.vue'
+import TicketStatusOverview from '@/components/dashboard/TicketStatusOverview.vue'
 import ActiveTicketQueue from '@/components/dashboard/ActiveTicketQueue.vue'
 import TicketDetailsModal from '@/components/dashboard/TicketDetailsModal.vue'
 import type { Assignment } from '@/types/admin'
@@ -127,12 +128,17 @@ const overview = computed(() => ({
           <small v-if="role === 'ADMIN'">{{ stat.label === 'Ongoing Tickets' ? 'Assigned or currently being handled.' : stat.label === 'Total Tickets' ? 'All submitted support requests.' : stat.label === 'Open Tickets' ? 'Waiting to be assigned.' : 'Completed support requests.' }}</small>
         </article>
       </div>
+      <div v-if="role !== 'TECHNICIAN'" class="dashboard-workspace-panels">
+      <TicketStatusOverview v-if="role !== 'TECHNICIAN' && hasLoaded && !isLoading && !errorMessage" :tickets="tickets" />
+      <div class="dashboard-action-panel"><div class="dashboard-action-heading"><span>YOUR WORKSPACE</span><h3>What would you like to do?</h3></div>
       <nav class="dashboard-quick-actions" aria-label="Workspace shortcuts">
         <RouterLink v-for="action in quickActions" :key="action.path" :to="action.path" class="dashboard-quick-card">
           <span class="dashboard-quick-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path v-if="action.icon === 'plus'" d="M12 5v14M5 12h14"/><template v-else-if="action.icon === 'tickets'"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></template><template v-else><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M18 15a5 5 0 0 1 3 5"/></template></svg></span>
           <span><strong>{{ action.title }}</strong><small>{{ action.text }}</small></span><span class="dashboard-quick-arrow" aria-hidden="true">&#8599;</span>
         </RouterLink>
       </nav>
+      </div>
+      </div>
       <p v-if="assignmentError" class="form-message form-error" role="alert">{{ assignmentError }}</p>
       <ActiveTicketQueue v-if="role === 'ADMIN' && !isLoading && !errorMessage && hasLoaded && !assignmentError" :tickets="tickets" :assignments="assignments" @view-ticket="selectedTicketId = $event" />
       <TicketDetailsModal v-if="selectedTicketId !== null" :ticket-id="selectedTicketId" @close="selectedTicketId = null" @changed="ticketChanged" />
@@ -156,3 +162,14 @@ const overview = computed(() => ({
       </section>
   </section>
 </template>
+
+<style scoped>
+.dashboard-workspace-panels { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; }
+.dashboard-action-panel { padding: 26px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.dashboard-action-heading > span { color: var(--muted); font-size: 9px; font-weight: 750; letter-spacing: .14em; }
+.dashboard-action-heading h3 { margin: 10px 0 23px; color: var(--text-primary); font-size: 20px; letter-spacing: -.035em; }
+.dashboard-action-panel .dashboard-quick-actions { flex-direction: column; gap: 10px; }
+.dashboard-action-panel .dashboard-quick-card { flex: none; padding: 15px; background: var(--surface-raised); border-color: transparent; border-radius: 12px; }
+.dashboard-action-panel .dashboard-quick-card:hover { border-color: #8aafe4; }
+@media (max-width: 950px) { .dashboard-workspace-panels { grid-template-columns: minmax(0, 1fr); } }
+</style>
