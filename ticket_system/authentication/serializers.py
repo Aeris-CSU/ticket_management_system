@@ -1,31 +1,25 @@
 from rest_framework import serializers
-from .models import Authentication
+from .models import Authentication, Notification
+
 
 class AuthenticationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Authentication
-        fields = '__all__'
-        extra_kwargs = {'password': {'write_only': True},
-                        'role': {'read_only': True}}
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
     def create(self, validated_data):
-        user = Authentication.objects.create_user(
-            username = validated_data['username'],
-            password = validated_data['password'],
-            role = Authentication.ROLE_CHOICES.ADMIN,
-            first_name = validated_data.get('first_name', ''),
-            last_name = validated_data.get('last_name', ''),
-            email = validated_data.get('email', ''),
-        )
-        return user
-
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password')
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if password:
+        password = validated_data.pop('password', None)
+        instance = self.Meta.model(**validated_data)
+        if password is not None:
             instance.set_password(password)
         instance.save()
         return instance
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'user', 'title', 'message', 'is_read', 'created_at']
