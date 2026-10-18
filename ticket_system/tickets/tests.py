@@ -129,7 +129,7 @@ class TicketApiTests(APITestCase):
         self.assertEqual(self.client.patch(f'/api/tickets/{ticket.pk}/status/', {'status': 'RESOLVED'}, format='json').status_code, status.HTTP_200_OK)
         self.assertEqual(ticket.__class__.objects.get(pk=ticket.pk).status, Tickets.Status.RESOLVED)
         edit = self.client.put(f'/api/tickets/{ticket.pk}/', {'problem_title': 'Changed'}, format='json')
-        self.assertEqual(edit.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(edit.status_code, status.HTTP_403_FORBIDDEN)
         again = self.client.patch(f'/api/tickets/{ticket.pk}/status/', {'status': 'CANCELLED'}, format='json')
         self.assertEqual(again.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -244,7 +244,7 @@ class TicketApiTests(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertRegex(response.data['ticket_number'], r'^TCK \d{8}-\d{4,}$')
         ticket_id = response.data['id']
-        self.client.force_authenticate(self.admin)
+        self.client.force_authenticate(self.customer.user)
         changed = self.client.put(f'/api/tickets/{ticket_id}/', {'ticket_number': 'FAKE', 'problem_title': 'Updated'}, format='json')
         self.assertEqual(changed.status_code, 200)
         self.assertEqual(changed.data['ticket_number'], response.data['ticket_number'])
@@ -268,7 +268,7 @@ class TicketApiTests(APITestCase):
         self.assertEqual(ticket.address, '')
         self.client.force_authenticate(self.admin)
         for prefix in ('/api/tickets/', '/api/tickets/update/'):
-            self.assertEqual(self.client.put(f'{prefix}{ticket.pk}/', {'problem_title': 'Admin edit'}, format='json').status_code, 200)
+            self.assertEqual(self.client.put(f'{prefix}{ticket.pk}/', {'problem_title': 'Admin edit'}, format='json').status_code, 403)
 
     def test_admin_removes_terminal_tickets_and_preserves_history(self):
         from assignments.models import Assignments

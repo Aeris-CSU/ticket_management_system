@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { validMobileNumber, mobileNumberMessage } from '@/utils/phone'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import TicketStatusBadge from '@/components/dashboard/TicketStatusBadge.vue'
@@ -47,7 +48,7 @@ const canResolve = computed(() => isTechnician.value && Boolean(activeAssignment
 const canCancel = computed(() => Boolean(ticket.value && (isAdmin.value
   ? ['OPEN', 'ASSIGNED', 'ONGOING'].includes(ticket.value.status)
   : !isTechnician.value && ticket.value.status === 'OPEN')))
-const canEditDetails = computed(() => Boolean(ticket.value && !['RESOLVED', 'CANCELLED'].includes(ticket.value.status) && (isAdmin.value || (route.meta.role === 'CUSTOMER' && ticket.value.status === 'OPEN'))))
+const canEditDetails = computed(() => Boolean(ticket.value && route.meta.role === 'CUSTOMER' && ticket.value.status === 'OPEN'))
 
 function startEditing() {
   if (!ticket.value || !canEditDetails.value) return
@@ -67,6 +68,7 @@ async function saveDetails() {
     detailsError.value = 'Enter a title and description.'
     return
   }
+  if (!validMobileNumber(editContactNumber.value)) { detailsError.value = mobileNumberMessage; return }
   isSavingDetails.value = true
   try {
     ticket.value = await updateTicket(String(ticket.value.id), {

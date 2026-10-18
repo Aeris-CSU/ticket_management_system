@@ -1,3 +1,4 @@
+from customers.phone import validate_mobile_number
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
@@ -7,6 +8,9 @@ from authentication.models import Authentication
 
 
 class CustomersSerializer(serializers.ModelSerializer):
+    def validate_contact_number(self, value):
+        return validate_mobile_number(value)
+
     username = serializers.CharField(source='user.username')
     password = serializers.CharField(write_only=True, required=False)
     first_name = serializers.CharField(source='user.first_name', required=False, allow_blank=True, default='')

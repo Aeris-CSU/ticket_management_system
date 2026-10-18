@@ -2107,8 +2107,8 @@ html[data-theme='dark'] .primary-nav > a:not(.nav-login):hover { color: var(--li
 @media (min-width: 701px) {
   .dashboard-menu-button { display: flex; flex: 0 0 auto; }
   .dashboard-header h1 { flex: 1; }
-  .dashboard-shell.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
-  .dashboard-shell.sidebar-collapsed .dashboard-sidebar { display: none; }
+  .dashboard-shell.sidebar-collapsed { grid-template-columns: 0px minmax(0, 1fr); }
+  .dashboard-shell.sidebar-collapsed .dashboard-sidebar { transform: translateX(-100%); visibility: hidden; pointer-events: none; }
 }
 
 .ticket-cancellation-form, .ticket-cancellation-message { margin-top: 20px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); }
@@ -2413,3 +2413,36 @@ html:not([data-theme='dark']) .landing-page .features-section .feature-number { 
 html:not([data-theme='dark']) .landing-page .features-section .feature-icon { color: #3569bd; background: #edf3fd; border-color: #d7e3f6; }
 html:not([data-theme='dark']) .landing-page .features-section .feature-card:nth-child(2) .feature-icon { color: #197e73; background: #eaf7f3; border-color: #d2ece5; }
 html:not([data-theme='dark']) .landing-page .features-section .feature-card:nth-child(3) .feature-icon { color: #7954b2; background: #f2edfc; border-color: #e4daf6; }
+
+.sidebar-account-menu { margin: 0 7px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.sidebar-account-menu > summary { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; list-style: none; }
+.sidebar-account-menu > summary::-webkit-details-marker { display: none; }
+.sidebar-account-menu > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 12px; }
+.sidebar-account-menu .dashboard-avatar { width: 36px; height: 36px; flex-shrink: 0; font-size: 14px; }
+.sidebar-account-copy { display: grid; gap: 4px; min-width: 0; }
+.sidebar-account-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: 12px; }
+.sidebar-account-copy small { color: var(--muted); font-size: 10px; }
+.sidebar-account-chevron { margin-left: auto; color: var(--muted); }
+.sidebar-account-options { padding: 5px 8px 8px; border-top: 1px solid var(--border); }
+.sidebar-account-options button { width: 100%; margin: 0; padding: 11px 10px; text-align: left; justify-content: flex-start; border: 0; background: transparent; border-radius: 7px; font-size: 12px; cursor: pointer; }
+.sidebar-edit-profile { color: var(--text-primary); }
+.sidebar-edit-profile:hover { background: var(--surface-raised); }
+
+.sidebar-account-options .sidebar-edit-profile { display: block; width: 100%; padding: 11px 10px; border-radius: 7px; font-size: 12px; text-decoration: none; }
+
+/* Keep both grid tracks present so sidebar toggles interpolate smoothly. */
+@media (min-width: 701px) {
+  .dashboard-shell { --sidebar-width: 252px; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); transition: grid-template-columns 280ms cubic-bezier(.22, 1, .36, 1); }
+  .dashboard-sidebar { width: var(--sidebar-width); min-width: 0; transform: translateX(0); visibility: visible; transition: transform 280ms cubic-bezier(.22, 1, .36, 1), visibility 0s; }
+  .dashboard-shell.sidebar-collapsed .dashboard-sidebar { transition: transform 280ms cubic-bezier(.22, 1, .36, 1), visibility 0s 280ms; }
+}
+@media (min-width: 701px) and (max-width: 900px) { .dashboard-shell { --sidebar-width: 220px; } }
+@media (max-width: 700px) {
+  .dashboard-sidebar { transition: transform 280ms cubic-bezier(.22, 1, .36, 1), visibility 0s 280ms; }
+  .dashboard-sidebar.is-open { transition: transform 280ms cubic-bezier(.22, 1, .36, 1), visibility 0s; }
+}
+.sidebar-backdrop-enter-active, .sidebar-backdrop-leave-active { transition: opacity 220ms ease; }
+.sidebar-backdrop-enter-from, .sidebar-backdrop-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell, .dashboard-sidebar, .dashboard-shell.sidebar-collapsed .dashboard-sidebar, .dashboard-sidebar.is-open, .sidebar-backdrop-enter-active, .sidebar-backdrop-leave-active { transition: none; }
+}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountAvatar from '@/components/AccountAvatar.vue'
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -87,12 +88,16 @@ const roleNames: Record<UserRole, string> = {
       </template>
     </nav>
     <div class="dashboard-sidebar-footer">
+      <details v-if="auth.user" class="sidebar-account-menu">
+        <summary :aria-label="`${roleNames[role]} account menu`"><span class="dashboard-avatar" aria-hidden="true"><AccountAvatar /></span><span class="sidebar-account-copy"><strong>{{ role === 'CUSTOMER' ? (auth.user?.first_name?.trim() || auth.user?.username) : auth.user?.username }}</strong><small>My account</small></span><span class="sidebar-account-chevron" aria-hidden="true">&#8964;</span></summary>
+        <div class="sidebar-account-options">
+          <RouterLink class="sidebar-edit-profile" :to="`/${role.toLowerCase()}/profile`" @click="emit('close')">Edit profile</RouterLink>
+          <button v-if="role !== 'ADMIN'" class="dashboard-delete-account" type="button" @click="confirmDelete = true; deleteError = ''">Delete my account</button>
+        </div>
+      </details>
       <p class="dashboard-sidebar-note">Support Made Simple.</p>
       <button class="dashboard-logout" type="button" @click="logout">Log out</button>
-      <button v-if="auth.user?.role === 'CUSTOMER' || auth.user?.role === 'TECHNICIAN'" class="dashboard-delete-account" type="button" @click="confirmDelete = true; deleteError = ''">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
-        Delete my account
-      </button>
+
     </div>
   </aside>
   <DirectoryDetailsModal v-if="confirmDelete" title="Delete my account" :dismissible="!deleting" @close="confirmDelete = false">

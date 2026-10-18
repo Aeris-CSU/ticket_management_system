@@ -65,3 +65,17 @@ class CustomerProfileTests(APITestCase):
             self.assertEqual(self.client.delete(f'{prefix}{self.customer.pk}/').status_code, 409)
         self.assertTrue(Customers.objects.filter(pk=self.customer.pk).exists())
         self.assertTrue(Authentication.objects.filter(pk=self.user.pk).exists())
+
+    def test_invalid_mobile_numbers_rejected_on_registration_and_profile_update(self):
+        for number in ('hello123', '123', '08171234567', '091712345678', '+63917123456', '0917<script>1234567'):
+            response = self.client.put(f'/api/customers/{self.customer.pk}/', {'contact_number': number}, format='json')
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('contact_number', response.data)
+            response = self.client.post('/api/register/', {'username': 'phone-test', 'password': 'FreshSecret123!', 'address': 'Home', 'contact_number': number}, format='json')
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('contact_number', response.data)
+
+    def test_mobile_number_accepts_local_international_spaces_and_hyphens(self):
+        for number in ('09171234567', '+639171234567', '+63 917 123 4567', '0917-123-4567'):
+            response = self.client.put(f'/api/customers/{self.customer.pk}/', {'contact_number': number}, format='json')
+            self.assertEqual(response.status_code, 200)

@@ -7,6 +7,7 @@ class Authentication(AbstractUser):
         ADMIN = "ADMIN", 'admin'
         TECHNICIAN = "TECHNICIAN", 'technician'
         CUSTOMER = "CUSTOMER", 'customer'
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES.choices)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

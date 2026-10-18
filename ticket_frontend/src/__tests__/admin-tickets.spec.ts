@@ -214,29 +214,6 @@ describe('administrator ticket management', () => {
     expect(document.body.style.overflow).not.toBe('hidden')
   })
 
-  it('saves ticket edits inside the popup and updates the list behind it', async () => {
-    const wrapper = mountRouter()
-    await router.push('/admin/tickets')
-    await flushPromises()
-    ticketApi.updateTicket.mockResolvedValueOnce({ ...ticketRecords[0]!, problem_title: 'Updated from popup' })
-    await wrapper.get('.ticket-table button').trigger('click')
-    await flushPromises()
-    const popup = document.querySelector('dialog')!
-    ;(popup.querySelector('.ticket-edit-button') as HTMLButtonElement).click()
-    await flushPromises()
-    const input = popup.querySelector('#edit-ticket-title') as HTMLInputElement
-    input.value = 'Updated from popup'
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    popup.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await flushPromises()
-    expect(ticketApi.updateTicket).toHaveBeenCalledWith('51', expect.objectContaining({ problem_title: 'Updated from popup' }))
-    expect(wrapper.get('.ticket-table').text()).toContain('Updated from popup')
-    ;(popup.querySelector('.ticket-modal-close') as HTMLButtonElement).click()
-    await flushPromises()
-    expect(document.querySelector('dialog')).toBeNull()
-    expect(router.currentRoute.value.path).toBe('/admin/tickets')
-  })
-
   it('shows the submitted contact number and address inside the ticket popup', async () => {
     ticketApi.getTicket.mockResolvedValueOnce({ ...ticketRecords[0]!, contact_number: '09171234567', address: 'Room 204' })
     const wrapper = mountRouter()
@@ -333,13 +310,35 @@ describe('administrator ticket management', () => {
     expect(wrapper.text()).toContain('Sam Taylor')
   })
 
-  it('counts only active technician assignments and shows their linked tickets', async () => {
+  it('shows the last technician for resolved tickets without reviving inactive open-ticket assignments', async () => {
+    ticketApi.listTickets.mockResolvedValueOnce([
+      { ...ticketRecords[0]!, status: 'RESOLVED' },
+      { ...ticketRecords[1]!, status: 'OPEN' },
+    ])
+    assignmentApi.listAssignments.mockResolvedValueOnce([
+      { ...assignmentRecord, id: 20, is_active: false, technician_name: 'Latest technician', assigned_at: '2026-05-13T10:00:00Z' },
+      { ...assignmentRecord, id: 19, is_active: false, technician_name: 'Previous technician' },
+      { ...assignmentRecord, id: 21, tickets: 50, is_active: false, technician_name: 'Unassigned technician' },
+    ])
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets')
+    await flushPromises()
+    const rows = wrapper.findAll('.ticket-table tbody tr')
+    expect(rows[0]!.text()).toContain('Latest technician')
+    expect(rows[0]!.text()).not.toContain('Previous technician')
+    expect(rows[1]!.text()).toContain('Unassigned')
+    expect(rows[1]!.text()).not.toContain('Unassigned technician')
+  })
+
+  it('shows only the current ticket and links to its details', async () => {
     assignmentApi.listAssignments.mockResolvedValueOnce([assignmentRecord, { ...assignmentRecord, id: 16, tickets: 50, is_active: false }])
     const wrapper = mountRouter()
     await router.push('/admin/technicians')
     await flushPromises()
     const firstRow = wrapper.get('.directory-table tbody tr')
-    expect(firstRow.findAll('td')[4]!.text()).toBe('1')
+    expect(firstRow.findAll('td')[4]!.text()).toBe('Ticket #51')
+    expect(firstRow.get('.current-ticket-link').attributes('href')).toBe('/admin/tickets/51')
+    expect(wrapper.findAll('.directory-table tbody tr')[1]!.text()).toContain('No active ticket')
     await firstRow.get('button').trigger('click')
     const popup = document.querySelector('.directory-details-modal')!
     expect(popup.textContent).toContain('Technician Details')
@@ -351,34 +350,13 @@ describe('administrator ticket management', () => {
     expect(document.querySelector('.directory-details-modal')).toBeNull()
   })
 
-  it('edits details inside the same card as the technician assignment', async () => {
-    ticketApi.updateTicket.mockResolvedValue({ ...ticketRecords[0], problem_title: 'Updated title', problem_description: 'Updated description' })
+  it('keeps ticket details read-only for administrators while preserving assignment controls', async () => {
     const wrapper = mountRouter()
     await router.push('/admin/tickets/51')
     await flushPromises()
-
-    expect(wrapper.find('.ticket-detail-card .assignment-panel').exists()).toBe(true)
-    await wrapper.get('.ticket-edit-button').trigger('click')
-    await wrapper.get('#edit-ticket-title').setValue('Updated title')
-    await wrapper.get('#edit-ticket-description').setValue('Updated description')
-    await wrapper.get('.ticket-detail-edit').trigger('submit')
-    await flushPromises()
-
-    expect(ticketApi.updateTicket).toHaveBeenCalledWith('51', { problem_title: 'Updated title', problem_description: 'Updated description' })
-    expect(wrapper.get('.ticket-detail-card').text()).toContain('Updated title')
-    expect(wrapper.text()).toContain('Ticket details updated.')
+    expect(wrapper.find('.ticket-edit-button').exists()).toBe(false)
     expect(wrapper.find('.ticket-detail-edit').exists()).toBe(false)
-  })
-
-  it('cancels editing without saving changes', async () => {
-    const wrapper = mountRouter()
-    await router.push('/admin/tickets/51')
-    await flushPromises()
-    await wrapper.get('.ticket-edit-button').trigger('click')
-    await wrapper.get('#edit-ticket-title').setValue('Unsaved title')
-    await wrapper.get('.ticket-detail-edit button[type="button"]').trigger('click')
-    expect(ticketApi.updateTicket).not.toHaveBeenCalled()
-    expect(wrapper.get('.ticket-detail-card').text()).toContain('Cannot connect to Wi-Fi')
+    expect(wrapper.find('.assignment-form').exists()).toBe(true)
   })
 
   it('cancels an active ticket and removes its edit and assignment actions', async () => {

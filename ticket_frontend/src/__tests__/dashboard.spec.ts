@@ -44,9 +44,9 @@ describe('shared role dashboards', () => {
     await router.push(path)
     await flushPromises()
 
-    expect(wrapper.get('#dashboard-heading').text()).toBe(heading)
-    expect(wrapper.get('.dashboard-account-copy').text()).toContain('dashboard-user')
-    expect(wrapper.get('.dashboard-account-copy').text()).toContain(role === 'ADMIN' ? 'Admin' : role === 'TECHNICIAN' ? 'Technician' : 'Customer')
+    expect(wrapper.get('#dashboard-heading').text()).toBe(role === 'CUSTOMER' ? 'Welcome, dashboard-user!' : heading)
+    expect(wrapper.get('.sidebar-account-copy').text()).toContain('dashboard-user')
+    expect(wrapper.get('.sidebar-account-copy').text()).toContain('My account')
     expect(wrapper.findAll('.dashboard-stat-card')).toHaveLength(4)
     if (role === 'TECHNICIAN') {
       expect(wrapper.findAll('.dashboard-stat-card strong').every((value) => value.text() === '0')).toBe(true)
@@ -67,7 +67,7 @@ describe('shared role dashboards', () => {
     auth.status = 'authenticated'
     await router.push('/admin')
     expect(router.currentRoute.value.path).toBe('/customer')
-    expect(wrapper.text()).toContain('Customer Dashboard')
+    expect(wrapper.text()).toContain('Welcome, customer!')
   })
 
   it('opens and closes the mobile navigation and logs out using the auth store', async () => {

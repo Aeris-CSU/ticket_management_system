@@ -1,3 +1,4 @@
+from customers.phone import validate_mobile_number
 from rest_framework import serializers
 
 from authentication.models import Authentication
@@ -6,6 +7,9 @@ from .models import Tickets
 
 
 class TicketsSerializer(serializers.ModelSerializer):
+    def validate_contact_number(self, value):
+        return validate_mobile_number(value)
+
     customer_name = serializers.SerializerMethodField(read_only=True)
     customer_address = serializers.CharField(source='address', read_only=True)
     address = serializers.CharField(max_length=100, required=False)

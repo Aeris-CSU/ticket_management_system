@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { validMobileNumber, mobileNumberMessage } from '@/utils/phone'
 import AuthBrandPanel from '@/components/AuthBrandPanel.vue'
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
@@ -25,6 +26,7 @@ async function submitRegistration() {
     errorMessage.value = 'Complete all required fields.'
     return
   }
+  if (!validMobileNumber(contactNumber.value)) { errorMessage.value = mobileNumberMessage; return }
   if (password.value.length < 8) {
     errorMessage.value = 'Password must be at least 8 characters.'
     return

@@ -13,7 +13,7 @@ from .serializers import ChangePasswordSerializer
 
 
 class ChangePassword(APIView):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         with transaction.atomic():
@@ -99,3 +99,22 @@ class DeleteOwnAccount(APIView):
             except ProtectedError:
                 return Response({'detail': 'Your account has protected history and cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OwnProfilePicture(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        from .serializers import ProfilePictureSerializer
+        serializer = ProfilePictureSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.profile_picture = serializer.validated_data['profile_picture']
+        user.save(update_fields=['profile_picture', 'updated_at'])
+        return Response(AuthenticationSerializer(user).data)
+
+    def delete(self, request):
+        user = request.user
+        user.profile_picture = ''
+        user.save(update_fields=['profile_picture', 'updated_at'])
+        return Response(AuthenticationSerializer(user).data)

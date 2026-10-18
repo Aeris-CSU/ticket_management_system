@@ -75,6 +75,12 @@ function clearDirectoryFilters() {
   directorySort.value = 'default'
 }
 const selectedPerson = computed(() => rows.value.find((person) => person.id === selectedPersonId.value))
+function currentTicket(id: number) {
+  const assignment = assignments.value.find(item => item.is_active && item.technicians === id)
+  if (!assignment) return null
+  const ticket = tickets.value.find(item => item.id === assignment.tickets)
+  return { id: assignment.tickets, label: ticket?.ticket_number || `Ticket #${assignment.tickets}` }
+}
 const activeCount = (id: number) => assignments.value.filter((item) => item.is_active && item.technicians === id).length
 const relatedTickets = computed(() => selectedPersonId.value === null ? [] : tickets.value.filter((ticket) => isTechnicianDirectory.value
   ? assignments.value.some((item) => item.is_active && item.technicians === selectedPersonId.value && item.tickets === ticket.id)
@@ -223,7 +229,7 @@ async function submitTechnician() {
           <div><dt>Username</dt><dd>{{ selectedPerson.username }}</dd></div>
           <div><dt>Email address</dt><dd>{{ selectedPerson.email || 'Not provided' }}</dd></div>
           <div><dt>Specialization</dt><dd>{{ selectedPerson.detail || 'Not provided' }}</dd></div>
-          <div><dt>Active assigned tickets</dt><dd>{{ relatedError ? 'Unavailable' : relatedTickets.length }}</dd></div>
+          <div><dt>Current ticket</dt><dd><span v-if="relatedError">Unavailable</span><RouterLink v-else-if="currentTicket(selectedPerson.id)" class="dashboard-text-link current-ticket-link" :to="`/admin/tickets/${currentTicket(selectedPerson.id)!.id}`">{{ currentTicket(selectedPerson.id)!.label }}</RouterLink><span v-else class="directory-detail">No active ticket</span></dd></div>
         </dl>
       </template>
       <div class="technician-delete-actions">
@@ -236,7 +242,7 @@ async function submitTechnician() {
           </div>
         </template>
       </div>
-      <h4>{{ isTechnicianDirectory ? 'Active assigned tickets' : 'Submitted support tickets' }} <span v-if="!relatedError" class="queue-count">{{ relatedTickets.length }}</span></h4>
+      <h4>{{ isTechnicianDirectory ? 'Current ticket' : 'Submitted support tickets' }} <span v-if="!isTechnicianDirectory && !relatedError" class="queue-count">{{ relatedTickets.length }}</span></h4>
       <p v-if="!relatedError && !relatedTickets.length" class="directory-detail customer-ticket-empty">{{ isTechnicianDirectory ? 'No tickets to display.' : 'This customer has not submitted any support tickets yet.' }}</p>
       <p v-if="relatedError" class="form-message form-error" role="alert">{{ relatedError }}</p>
       <ul v-if="!relatedError" class="directory-ticket-links"><li v-for="item in relatedTickets" :key="item.id"><RouterLink class="dashboard-text-link" :to="`/admin/tickets/${item.id}`">{{ item.ticket_number || `#${item.id}` }} — {{ item.problem_title }}</RouterLink><TicketStatusBadge :status="item.status" /></li></ul>
@@ -296,7 +302,7 @@ async function submitTechnician() {
     <div v-else-if="filteredRows.length === 0" class="ticket-empty-state"><h3>No matching {{ heading.toLowerCase() }}</h3><p>Try a different search or filter.</p><button class="button button-secondary" type="button" @click="clearDirectoryFilters">Clear search</button></div>
     <div v-else class="ticket-table-wrap">
       <table class="ticket-table directory-table">
-        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th v-if="!isTechnicianDirectory" scope="col">Contact number</th><th scope="col">{{ isTechnicianDirectory ? 'Specialization' : 'Address' }}</th><th v-if="isTechnicianDirectory" scope="col">Availability</th><th v-if="isTechnicianDirectory" scope="col">Active Assigned Tickets</th><th scope="col">Action</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th v-if="!isTechnicianDirectory" scope="col">Contact number</th><th scope="col">{{ isTechnicianDirectory ? 'Specialization' : 'Address' }}</th><th v-if="isTechnicianDirectory" scope="col">Availability</th><th v-if="isTechnicianDirectory" scope="col">Current Ticket</th><th scope="col">Action</th></tr></thead>
         <tbody>
           <tr v-for="person in filteredRows" :key="person.id">
             <td><strong>{{ person.name }}</strong></td>
@@ -304,7 +310,7 @@ async function submitTechnician() {
             <td v-if="!isTechnicianDirectory">{{ person.contactNumber || 'Not provided' }}</td>
             <td>{{ person.detail || '—' }}</td>
             <td v-if="isTechnicianDirectory"><span class="assignment-state" :class="person.availability === 'AVAILABLE' ? 'is-active' : 'is-inactive'">{{ person.availability === 'AVAILABLE' ? 'Available' : 'Unavailable' }}</span></td>
-            <td v-if="isTechnicianDirectory">{{ relatedError ? 'Unavailable' : activeCount(person.id) }}</td>
+            <td v-if="isTechnicianDirectory"><span v-if="relatedError">Unavailable</span><RouterLink v-else-if="currentTicket(person.id)" class="dashboard-text-link current-ticket-link" :to="`/admin/tickets/${currentTicket(person.id)!.id}`">{{ currentTicket(person.id)!.label }}</RouterLink><span v-else class="directory-detail">No active ticket</span></td>
             <td><div class="directory-row-actions"><button class="dashboard-text-link" type="button" :aria-expanded="selectedPersonId === person.id" @click="selectedPersonId = person.id">View Details</button><button class="technician-delete-icon" type="button" :aria-label="`Delete ${isTechnicianDirectory ? 'technician' : 'customer'} account for ${person.name}`" :title="isTechnicianDirectory ? 'Delete technician account' : 'Delete customer account'" :disabled="isDeleting" @click="confirmAccountDeletion(person.id)">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
             </button></div></td>
@@ -316,7 +322,7 @@ async function submitTechnician() {
           <h3>{{ person.name }}</h3>
           <p v-if="!isTechnicianDirectory" class="directory-detail">Contact number: {{ person.contactNumber || 'Not provided' }}</p>
           <p class="directory-detail">#{{ person.id }} · {{ isTechnicianDirectory ? 'Specialization' : 'Address' }}: {{ person.detail || 'Not provided' }}</p>
-          <p v-if="isTechnicianDirectory" class="directory-detail">Active assigned tickets: {{ relatedError ? 'Unavailable' : activeCount(person.id) }}</p>
+          <p v-if="isTechnicianDirectory" class="directory-detail">Current ticket: <span v-if="relatedError">Unavailable</span><RouterLink v-else-if="currentTicket(person.id)" class="dashboard-text-link current-ticket-link" :to="`/admin/tickets/${currentTicket(person.id)!.id}`">{{ currentTicket(person.id)!.label }}</RouterLink><span v-else class="directory-detail">No active ticket</span></p>
           <button class="dashboard-text-link" type="button" :aria-expanded="selectedPersonId === person.id" @click="selectedPersonId = person.id">View Details</button>
           <button class="technician-delete-icon" type="button" :aria-label="`Delete ${isTechnicianDirectory ? 'technician' : 'customer'} account for ${person.name}`" :title="isTechnicianDirectory ? 'Delete technician account' : 'Delete customer account'" :disabled="isDeleting" @click="confirmAccountDeletion(person.id)">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>

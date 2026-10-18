@@ -16,6 +16,7 @@ function toggleMenu() {
 <template>
   <div class="dashboard-shell" :class="{ 'sidebar-collapsed': desktopCollapsed }" @keydown.esc="sidebarOpen = false">
     <DashboardSidebar :open="sidebarOpen" @close="sidebarOpen = false" />
+    <Transition name="sidebar-backdrop">
     <button
       v-if="sidebarOpen"
       class="dashboard-overlay"
@@ -23,6 +24,7 @@ function toggleMenu() {
       aria-label="Close navigation menu"
       @click="sidebarOpen = false"
     />
+    </Transition>
     <div class="dashboard-main">
       <DashboardHeader :menu-open="sidebarOpen" :desktop-collapsed="desktopCollapsed" @open-menu="toggleMenu" />
       <main class="dashboard-content" id="dashboard-content">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { validMobileNumber, mobileNumberMessage } from '@/utils/phone'
 import { onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { readableAuthError } from '@/services/auth'
@@ -42,7 +43,7 @@ async function submitTicket() {
   if (title.value.trim().length > 200) fieldErrors.problem_title = 'The title must be 200 characters or fewer.'
   if (!address.value.trim()) fieldErrors.address = 'Enter the address where support is needed.'
   if (address.value.trim().length > 100) fieldErrors.address = 'Address must be 100 characters or fewer.'
-  if (contactNumber.value.trim().length > 30) fieldErrors.contact_number = 'Contact number must be 30 characters or fewer.'
+  if (!validMobileNumber(contactNumber.value)) fieldErrors.contact_number = mobileNumberMessage
   if (Object.values(fieldErrors).some(Boolean)) return
 
   isSubmitting.value = true

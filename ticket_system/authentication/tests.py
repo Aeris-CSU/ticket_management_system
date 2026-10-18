@@ -65,7 +65,7 @@ class AuthenticationApiTests(APITestCase):
         self.assertTrue(self.admin.check_password('AdminPass123!x'))
         customer = Authentication.objects.create_user(username='notadmin', password='CustomerPass123!', role='CUSTOMER')
         self.client.force_authenticate(customer)
-        self.assertEqual(self.client.post('/api/change-password/', {}).status_code, 403)
+        self.assertEqual(self.client.post('/api/change-password/', {}).status_code, 400)
         self.client.force_authenticate(None)
         self.assertEqual(self.client.post('/api/change-password/', {}).status_code, 401)
 
@@ -253,3 +253,17 @@ class TechnicianPasswordTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         tech.refresh_from_db()
         self.assertTrue(tech.check_password('OldTechSecret123!'))
+
+
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class CustomerPasswordTests(APITestCase):
+    def test_customer_changes_password_with_current_password(self):
+        user = Authentication.objects.create_user(username='password-customer', password='OldCustomerSecret123!', role='CUSTOMER')
+        self.client.force_authenticate(user)
+        payload = {'current_password': 'wrong', 'new_password': 'FreshCustomerSecret456!', 'confirm_password': 'FreshCustomerSecret456!'}
+        self.assertEqual(self.client.post('/api/change-password/', payload, format='json').status_code, 400)
+        payload['current_password'] = 'OldCustomerSecret123!'
+        self.assertEqual(self.client.post('/api/change-password/', payload, format='json').status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('FreshCustomerSecret456!'))
+        self.assertFalse(user.check_password('OldCustomerSecret123!'))

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import AdminProfileModal from '@/components/dashboard/AdminProfileModal.vue'
+import AdminProfileModal from '@/views/AccountProfileView.vue'
 
 const mocks = vi.hoisted(() => ({ change: vi.fn(), logout: vi.fn(), replace: vi.fn() }))
 vi.mock('@/services/auth', () => ({ changePasswordRequest: mocks.change, readableAuthError: () => 'Current password is incorrect.' }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { username: 'localadmin' }, logout: mocks.logout }) }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ replace: mocks.replace }) }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ replace: mocks.replace }), RouterLink: { template: '<a><slot /></a>' } }))
 const wrappers: ReturnType<typeof mount>[] = []
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); vi.resetAllMocks() })
 function createForm() {

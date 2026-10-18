@@ -74,7 +74,16 @@ async function ticketChanged(updated: Ticket) {
   }
   catch { assignmentError.value = 'Could not refresh assigned technicians. Reload this page to try again.' }
 }
-const technicianByTicket = computed(() => new Map(assignments.value.filter((item) => item.is_active).map((item) => [item.tickets, item.technician_name])))
+const technicianByTicket = computed(() => {
+  const result = new Map<number, string>()
+  const history = [...assignments.value].sort((a, b) => Date.parse(b.assigned_at) - Date.parse(a.assigned_at) || b.id - a.id)
+  for (const ticket of tickets.value) {
+    const assignment = history.find(item => item.tickets === ticket.id && item.is_active)
+      || (ticket.status === 'RESOLVED' ? history.find(item => item.tickets === ticket.id) : undefined)
+    if (assignment) result.set(ticket.id, assignment.technician_name)
+  }
+  return result
+})
 
 const filteredTickets = computed(() => tickets.value.filter((ticket) => {
   const statusMatches = isResolvedView.value ? ticket.status === 'RESOLVED' : selectedStatus.value === 'ALL' || ticket.status === selectedStatus.value
