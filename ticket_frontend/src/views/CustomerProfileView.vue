@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import ChangePasswordForm from '@/components/ChangePasswordForm.vue'
+import PersonalInformationDropdown from '@/components/PersonalInformationDropdown.vue'
+import ChangePasswordDropdown from '@/components/ChangePasswordDropdown.vue'
 import ProfilePictureEditor from '@/components/ProfilePictureEditor.vue'
 import { validMobileNumber, mobileNumberMessage } from '@/utils/phone'
 import { onMounted, reactive, ref } from 'vue'
@@ -60,6 +61,7 @@ async function save() {
   <section class="dashboard-view customer-profile-page" aria-labelledby="customer-profile-heading">
     <div class="dashboard-view-heading"><div><p class="eyebrow">MY ACCOUNT</p><h2 id="customer-profile-heading">Edit profile</h2><p>Keep your personal and contact information up to date.</p></div><RouterLink class="button button-secondary" to="/customer">Back to dashboard</RouterLink></div>
     <ProfilePictureEditor />
+    <PersonalInformationDropdown>
     <p v-if="loading" class="dashboard-message" role="status">Loading your profile...</p>
     <p v-if="error && profileId === null" class="form-message form-error" role="alert">{{ error }}</p>
     <form v-if="!loading && profileId !== null" class="ticket-form-card customer-profile-form" :aria-busy="saving" @submit.prevent="save">
@@ -72,21 +74,14 @@ async function save() {
       <p v-if="error" class="form-message form-error" role="alert">{{ error }}</p>
       <div class="ticket-form-actions"><button class="button button-primary" type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save Changes' }}</button></div>
     </form>
-    <details class="customer-password-section">
-      <summary>Change password <span aria-hidden="true">&#8964;</span></summary>
-      <ChangePasswordForm />
-    </details>
+    </PersonalInformationDropdown>
+    <ChangePasswordDropdown />
   </section>
 </template>
 
 <style scoped>
-.customer-profile-form { max-width: 780px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 24px; padding: 28px; }
+.customer-profile-form { max-width: 780px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin: 0; padding: 0 24px 24px; border: 0; box-shadow: none; }
 .customer-profile-form > .form-message, .customer-profile-form > .ticket-form-actions { grid-column: 1 / -1; }
 .customer-profile-form > .ticket-form-actions { display: flex; justify-content: flex-end; padding-top: 20px; border-top: 1px solid var(--border); }
 @media (max-width: 600px) { .customer-profile-form { grid-template-columns: minmax(0, 1fr); padding: 22px; gap: 18px; } }
-.customer-password-section { max-width: 780px; margin-top: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-.customer-password-section > summary { display: flex; justify-content: space-between; padding: 20px 24px; cursor: pointer; color: var(--text-primary); font-size: 14px; font-weight: 650; list-style: none; }
-.customer-password-section > summary::-webkit-details-marker { display: none; }
-.customer-password-section > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.customer-password-section :deep(form) { border: 0; margin: 0; padding: 0 24px 24px; box-shadow: none; }
 </style>

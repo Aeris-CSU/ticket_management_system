@@ -2446,3 +2446,5 @@ html:not([data-theme='dark']) .landing-page .features-section .feature-card:nth-
 @media (prefers-reduced-motion: reduce) {
   .dashboard-shell, .dashboard-sidebar, .dashboard-shell.sidebar-collapsed .dashboard-sidebar, .dashboard-sidebar.is-open, .sidebar-backdrop-enter-active, .sidebar-backdrop-leave-active { transition: none; }
 }
+
+.customer-profile-page, .account-profile-page { row-gap: 0; }

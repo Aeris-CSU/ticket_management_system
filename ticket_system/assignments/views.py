@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -26,7 +27,9 @@ class AssignmentBase(APIView):
             if ticket.status != Tickets.Status.ASSIGNED:
                 return Response({'detail': 'Only assigned tickets can be unassigned. Reassign or resolve ongoing tickets.'}, status=status.HTTP_409_CONFLICT)
             assignment.is_active = False
-            assignment.save(update_fields=['is_active'])
+            assignment.ended_at = timezone.now()
+            assignment.end_reason = 'UNASSIGNED'
+            assignment.save(update_fields=['is_active', 'ended_at', 'end_reason'])
             release_technicians([assignment.technicians_id])
             ticket.status = Tickets.Status.OPEN
             ticket.save(update_fields=['status', 'updated_at'])
@@ -96,3 +99,29 @@ class AssignmentsDetail(AssignmentBase):
         if request.user.role != Authentication.ROLE_CHOICES.ADMIN:
             raise PermissionDenied('Only administrators can unassign technicians.')
         return self.deactivate(self.get_assignment(pk))
+
+
+class TechnicianHistory(APIView):
+    permission_classes = [TechnicianPermission]
+
+    def get(self, request, pk=None):
+        from django.db.models import Q
+        from rest_framework.pagination import PageNumberPagination
+        from .serializers import AssignmentHistorySerializer
+        query = Assignments.objects.select_related('tickets__customer__user').filter(
+            technicians__user=request.user, is_active=False, tickets__deleted_at__isnull=True,
+        ).order_by('-ended_at', '-created_at', '-id')
+        if pk is not None:
+            return Response(AssignmentHistorySerializer(get_object_or_404(query, pk=pk)).data)
+        search = request.query_params.get('search', '').strip()
+        for word in search.split():
+            query = query.filter(Q(tickets__ticket_number__icontains=word) | Q(tickets__problem_title__icontains=word) | Q(tickets__customer__user__first_name__icontains=word) | Q(tickets__customer__user__last_name__icontains=word) | Q(tickets__customer__user__username__icontains=word))
+        outcome = request.query_params.get('outcome', '')
+        if outcome == 'PREVIOUS':
+            query = query.filter(end_reason='')
+        elif outcome:
+            query = query.filter(end_reason=outcome)
+        paginator = PageNumberPagination()
+        paginator.page_size = 30
+        page = paginator.paginate_queryset(query, request, view=self)
+        return paginator.get_paginated_response(AssignmentHistorySerializer(page, many=True).data)

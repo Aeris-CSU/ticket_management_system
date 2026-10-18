@@ -14,6 +14,8 @@ function createForm() {
   return wrapper
 }
 async function fill(wrapper: ReturnType<typeof createForm>) {
+  expect(wrapper.get('.change-password-dropdown').attributes('open')).toBeUndefined()
+  wrapper.get('.change-password-dropdown').element.setAttribute('open', '')
   await wrapper.get('[name="current_password"]').setValue('TickarlaAdmin123!')
   await wrapper.get('[name="new_password"]').setValue('NewAdminPassword123!')
   await wrapper.get('[name="confirm_password"]').setValue('NewAdminPassword123!')

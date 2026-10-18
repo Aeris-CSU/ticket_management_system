@@ -44,7 +44,7 @@ describe('shared role dashboards', () => {
     await router.push(path)
     await flushPromises()
 
-    expect(wrapper.get('#dashboard-heading').text()).toBe(role === 'CUSTOMER' ? 'Welcome, dashboard-user!' : heading)
+    expect(wrapper.get('#dashboard-heading').text()).toBe(role !== 'ADMIN' ? 'Welcome, dashboard-user!' : heading)
     expect(wrapper.get('.sidebar-account-copy').text()).toContain('dashboard-user')
     expect(wrapper.get('.sidebar-account-copy').text()).toContain('My account')
     expect(wrapper.findAll('.dashboard-stat-card')).toHaveLength(4)

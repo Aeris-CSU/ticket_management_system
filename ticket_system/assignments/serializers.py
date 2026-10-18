@@ -1,3 +1,5 @@
+from django.utils import timezone
+from authentication.notifications import notify_ticket
 from django.db import transaction
 from rest_framework import serializers
 
@@ -70,6 +72,7 @@ class AssignmentsSerializer(serializers.ModelSerializer):
         technician.save(update_fields=['availability_status', 'updated_at'])
         ticket.status = Tickets.Status.ASSIGNED
         ticket.save(update_fields=['status', 'updated_at'])
+        notify_ticket(ticket, 'ASSIGNED', technician=technician)
         return assignment
 
     @transaction.atomic
@@ -92,11 +95,32 @@ class AssignmentsSerializer(serializers.ModelSerializer):
         if Assignments.objects.filter(technicians=technician, is_active=True).exists():
             raise serializers.ValidationError({'technicians': 'The technician already has an active ticket.'})
         instance.is_active = False
-        instance.save(update_fields=['is_active'])
+        instance.ended_at = timezone.now()
+        instance.end_reason = 'REASSIGNED'
+        instance.save(update_fields=['is_active', 'ended_at', 'end_reason'])
         replacement = Assignments.objects.create(tickets=ticket, technicians=technician)
         technician.availability_status = Technicians.Availability.UNAVAILABLE
         technician.save(update_fields=['availability_status', 'updated_at'])
         release_technicians([instance.technicians_id])
         ticket.status = Tickets.Status.ASSIGNED
         ticket.save(update_fields=['status', 'updated_at'])
+        notify_ticket(ticket, 'ASSIGNED', technician=technician, previous=instance.technicians)
         return replacement
+
+
+class AssignmentHistorySerializer(serializers.ModelSerializer):
+    ticket_id = serializers.IntegerField(source='tickets_id', read_only=True)
+    ticket_number = serializers.CharField(source='tickets.ticket_number', read_only=True)
+    problem_title = serializers.CharField(source='tickets.problem_title', read_only=True)
+    problem_description = serializers.CharField(source='tickets.problem_description', read_only=True)
+    current_status = serializers.CharField(source='tickets.status', read_only=True)
+    customer_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Assignments
+        fields = ['id', 'ticket_id', 'ticket_number', 'problem_title', 'problem_description', 'current_status', 'customer_name', 'created_at', 'ended_at', 'end_reason']
+        read_only_fields = fields
+
+    def get_customer_name(self, obj):
+        user = obj.tickets.customer.user
+        return f'{user.first_name} {user.last_name}'.strip() or user.username

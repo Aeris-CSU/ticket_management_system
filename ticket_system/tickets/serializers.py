@@ -1,3 +1,4 @@
+from django.db import transaction
 from customers.phone import validate_mobile_number
 from rest_framework import serializers
 
@@ -52,12 +53,16 @@ class TicketsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'customer': 'This field is required.'})
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         customer = validated_data['customer']
         validated_data.setdefault('address', customer.address)
         validated_data.setdefault('contact_number', customer.contact_number)
         validated_data['status'] = Tickets.Status.OPEN
-        return super().create(validated_data)
+        ticket = super().create(validated_data)
+        from authentication.notifications import notify_ticket
+        notify_ticket(ticket, 'SUBMITTED')
+        return ticket
 
 
 class TicketStatusSerializer(serializers.Serializer):

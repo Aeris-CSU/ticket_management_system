@@ -81,3 +81,22 @@ class TechnicianRegistrationTests(APITestCase):
             self.assertEqual(self.client.delete(f'{prefix}{tech.pk}/').status_code, 409)
         self.assertTrue(Authentication.objects.filter(pk=user.pk).exists())
         self.assertTrue(Technicians.objects.filter(pk=tech.pk).exists())
+
+    def test_technician_edits_own_profile_and_cannot_edit_other_technicians(self):
+        user = Authentication.objects.create_user(username='profile-tech', password='OldSecret123!', role='TECHNICIAN')
+        tech = Technicians.objects.create(user=user, specialization='IT')
+        other_user = Authentication.objects.create_user(username='other-profile-tech', role='TECHNICIAN')
+        other = Technicians.objects.create(user=other_user, specialization='IT')
+        self.client.force_authenticate(user)
+        response = self.client.put(f'/api/technicians/update/{tech.pk}/', {
+            'first_name': 'Sam', 'last_name': '', 'email': '', 'specialization': 'Network support',
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        tech.refresh_from_db()
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, 'Sam')
+        self.assertEqual(user.username, 'profile-tech')
+        self.assertEqual(tech.specialization, 'Network support')
+        reloaded = self.client.get('/api/technicians/').data
+        self.assertEqual(reloaded[0]['first_name'], 'Sam')
+        self.assertEqual(self.client.put(f'/api/technicians/update/{other.pk}/', {'first_name': 'Bad'}, format='json').status_code, 403)

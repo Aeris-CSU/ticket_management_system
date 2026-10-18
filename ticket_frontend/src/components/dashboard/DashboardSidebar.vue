@@ -43,7 +43,7 @@ const navigation: Record<UserRole, { label: string; path?: string }[]> = {
     { label: 'Customers', path: '/admin/customers' },
     { label: 'Technicians', path: '/admin/technicians' },
   ],
-  TECHNICIAN: [{ label: 'Dashboard', path: '/technician' }, { label: 'Assigned Tickets', path: '/technician/tickets' }],
+  TECHNICIAN: [{ label: 'Dashboard', path: '/technician' }, { label: 'Assigned Tickets', path: '/technician/tickets' }, { label: 'Ticket History', path: '/technician/history' }],
   CUSTOMER: [
     { label: 'Dashboard', path: '/customer' },
     { label: 'My Tickets', path: '/customer/tickets' },
@@ -89,7 +89,7 @@ const roleNames: Record<UserRole, string> = {
     </nav>
     <div class="dashboard-sidebar-footer">
       <details v-if="auth.user" class="sidebar-account-menu">
-        <summary :aria-label="`${roleNames[role]} account menu`"><span class="dashboard-avatar" aria-hidden="true"><AccountAvatar /></span><span class="sidebar-account-copy"><strong>{{ role === 'CUSTOMER' ? (auth.user?.first_name?.trim() || auth.user?.username) : auth.user?.username }}</strong><small>My account</small></span><span class="sidebar-account-chevron" aria-hidden="true">&#8964;</span></summary>
+        <summary :aria-label="`${roleNames[role]} account menu`"><span class="dashboard-avatar" aria-hidden="true"><AccountAvatar /></span><span class="sidebar-account-copy"><strong>{{ role !== 'ADMIN' ? (auth.user?.first_name?.trim() || auth.user?.username) : auth.user?.username }}</strong><small>My account</small></span><span class="sidebar-account-chevron" aria-hidden="true">&#8964;</span></summary>
         <div class="sidebar-account-options">
           <RouterLink class="sidebar-edit-profile" :to="`/${role.toLowerCase()}/profile`" @click="emit('close')">Edit profile</RouterLink>
           <button v-if="role !== 'ADMIN'" class="dashboard-delete-account" type="button" @click="confirmDelete = true; deleteError = ''">Delete my account</button>

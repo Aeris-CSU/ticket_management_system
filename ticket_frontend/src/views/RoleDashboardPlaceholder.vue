@@ -105,9 +105,9 @@ const overview = computed(() => ({
     <div class="dashboard-page-intro">
       <div class="dashboard-intro-copy">
       <p class="eyebrow">YOUR {{ role === 'ADMIN' ? 'SUPPORT OPERATIONS' : role === 'TECHNICIAN' ? 'TECHNICIAN WORKSPACE' : 'CUSTOMER WORKSPACE' }}</p>
-      <h2 id="dashboard-heading">{{ role === 'CUSTOMER' ? `Welcome, ${auth.user?.first_name?.trim() || auth.user?.username || 'there'}!` : overview.heading }}</h2>
+      <h2 id="dashboard-heading">{{ role !== 'ADMIN' ? `Welcome, ${auth.user?.first_name?.trim() || auth.user?.username || 'there'}!` : overview.heading }}</h2>
       <p>{{ overview.description }}</p>
-      <div v-if="role !== 'CUSTOMER'" class="dashboard-welcome-name">Welcome back, {{ auth.user?.first_name || auth.user?.username || 'there' }}.</div>
+      <div v-if="role === 'ADMIN'" class="dashboard-welcome-name">Welcome back, {{ auth.user?.first_name || auth.user?.username || 'there' }}.</div>
       </div>
       <div class="dashboard-hero-art" aria-hidden="true"><svg viewBox="0 0 160 150" fill="none"><rect x="39" y="24" width="87" height="110" rx="13" fill="white" fill-opacity=".08" stroke="white" stroke-opacity=".25"/><rect x="54" y="13" width="57" height="22" rx="7" fill="#76a8ee"/><path d="M57 57h49M57 71h34M57 85h42" stroke="#a7c9f8" stroke-width="5" stroke-linecap="round"/><circle cx="113" cy="113" r="24" fill="#345f94" stroke="#a7c9f8" stroke-opacity=".4"/><path d="m102 113 8 8 15-17" stroke="#c8f3e3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <button v-if="role === 'ADMIN'" class="button button-secondary dashboard-refresh" type="button" :disabled="isLoading" @click="refreshTickets"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17" /></svg>{{ isLoading ? 'Refreshing...' : 'Refresh Tickets' }}</button>

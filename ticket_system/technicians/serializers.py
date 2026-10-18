@@ -9,9 +9,9 @@ from authentication.models import Authentication
 class TechniciansSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username')
     password = serializers.CharField(write_only=True, required=False)
-    first_name = serializers.CharField(source='user.first_name', required=False, default='')
-    last_name = serializers.CharField(source='user.last_name', required=False, default='')
-    email = serializers.EmailField(source='user.email', required=False, default='')
+    first_name = serializers.CharField(source='user.first_name', required=False, allow_blank=True, default='')
+    last_name = serializers.CharField(source='user.last_name', required=False, allow_blank=True, default='')
+    email = serializers.EmailField(source='user.email', required=False, allow_blank=True, default='')
     availability_status = serializers.ChoiceField(
         choices=Technicians.Availability.choices,
         required=False,

@@ -1,8 +1,10 @@
+from .notification_views import NotificationsView
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import AccountList, AdminList, ChangePassword, DeleteOwnAccount, OwnProfilePicture
 
 urlpatterns = [
+    path('notifications/', NotificationsView.as_view()),
     path('accounts/me/picture/', OwnProfilePicture.as_view()),
     path('accounts/me/', DeleteOwnAccount.as_view()),
     path('change-password/', ChangePassword.as_view()),

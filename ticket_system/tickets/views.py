@@ -134,8 +134,10 @@ class TicketStatusUpdate(TicketDetailBase):
 
             ticket.status = new_status
             ticket.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
+            from authentication.notifications import notify_ticket
+            notify_ticket(ticket, new_status)
             if new_status in (Tickets.Status.RESOLVED, Tickets.Status.CANCELLED):
                 technician_ids = list(Assignments.objects.filter(tickets=ticket, is_active=True).values_list('technicians_id', flat=True))
-                Assignments.objects.filter(tickets=ticket, is_active=True).update(is_active=False)
+                Assignments.objects.filter(tickets=ticket, is_active=True).update(is_active=False, ended_at=timezone.now(), end_reason=new_status)
                 release_technicians(technician_ids)
         return Response(TicketsSerializer(ticket).data)

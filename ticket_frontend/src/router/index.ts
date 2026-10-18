@@ -20,6 +20,7 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'ADMIN', title: 'Admin Dashboard' },
       children: [
         { path: '', name: 'admin', component: RoleDashboardPlaceholder },
+        { path: 'notifications', name: 'admin-notifications', component: () => import('@/views/NotificationsView.vue'), meta: { title: 'Notifications' } },
         { path: 'profile', name: 'admin-profile', component: () => import('@/views/AccountProfileView.vue'), meta: { title: 'My Profile' } },
         { path: 'tickets', name: 'admin-tickets', component: () => import('@/views/TicketsListView.vue'), meta: { title: 'All Tickets', audience: 'admin' } },
         { path: 'tickets/:id', name: 'admin-ticket-detail', component: () => import('@/views/TicketDetailsView.vue'), meta: { title: 'Ticket Details' } },
@@ -35,6 +36,8 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'TECHNICIAN', title: 'Technician Dashboard' },
       children: [
         { path: '', name: 'technician', component: RoleDashboardPlaceholder },
+        { path: 'history', name: 'technician-history', component: () => import('@/views/TechnicianHistoryView.vue'), meta: { title: 'Ticket History' } },
+        { path: 'notifications', name: 'technician-notifications', component: () => import('@/views/NotificationsView.vue'), meta: { title: 'Notifications' } },
         { path: 'profile', name: 'technician-profile', component: () => import('@/views/AccountProfileView.vue'), meta: { title: 'My Profile' } },
         { path: 'tickets', name: 'technician-tickets', component: () => import('@/views/TicketsListView.vue'), meta: { title: 'Assigned Tickets', audience: 'technician' } },
         { path: 'tickets/:id', name: 'technician-ticket-detail', component: () => import('@/views/TicketDetailsView.vue'), meta: { title: 'Ticket Details', audience: 'technician' } },
@@ -46,6 +49,7 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'CUSTOMER', title: 'Customer Dashboard' },
       children: [
         { path: '', name: 'customer', component: RoleDashboardPlaceholder },
+        { path: 'notifications', name: 'customer-notifications', component: () => import('@/views/NotificationsView.vue'), meta: { title: 'Notifications' } },
         { path: 'profile', name: 'customer-profile', component: () => import('@/views/CustomerProfileView.vue'), meta: { title: 'My Profile' } },
         { path: 'tickets', name: 'customer-tickets', component: () => import('@/views/TicketsListView.vue'), meta: { title: 'My Tickets' } },
         { path: 'tickets/new', name: 'customer-ticket-create', component: () => import('@/views/CreateTicketView.vue'), meta: { title: 'Create Ticket' } },
