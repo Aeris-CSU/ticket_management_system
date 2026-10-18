@@ -10,4 +10,4 @@ class Tickets(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    customer = models.ForeignKey(Customers, on_delete=models.PROTECT)
+    customer = models.ForeignKey(Customers, on_delete=models.CASCADE)
