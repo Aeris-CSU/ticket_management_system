@@ -16,12 +16,16 @@ export async function getTicket(id: string) {
   return data
 }
 
-export async function updateTicketStatus(id: string, status: TicketStatus) {
-  const { data } = await api.patch<Ticket>(`tickets/${encodeURIComponent(id)}/status/`, { status })
+export async function updateTicketStatus(id: string, status: TicketStatus, cancellationReason?: string) {
+  const { data } = await api.patch<Ticket>(`tickets/${encodeURIComponent(id)}/status/`, { status, ...(cancellationReason !== undefined ? { cancellation_reason: cancellationReason } : {}) })
   return data
 }
 
 export async function updateTicket(id: string, payload: CreateTicketPayload) {
   const { data } = await api.put<Ticket>(`tickets/${encodeURIComponent(id)}/`, payload)
   return data
+}
+
+export async function deleteTicket(id: number) {
+  await api.delete(`tickets/${id}/`)
 }

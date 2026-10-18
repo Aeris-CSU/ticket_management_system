@@ -170,7 +170,7 @@ class AssignmentApiTests(APITestCase):
     def test_cancelling_releases_technician_for_a_new_ticket(self):
         self.client.force_authenticate(self.admin)
         self.assertEqual(self.assign().status_code, status.HTTP_201_CREATED)
-        cancelled = self.client.patch(f'/api/tickets/{self.ticket.pk}/status/', {'status': 'CANCELLED'}, format='json')
+        cancelled = self.client.patch(f'/api/tickets/{self.ticket.pk}/status/', {'status': 'CANCELLED', 'cancellation_reason': 'Duplicate request.'}, format='json')
         self.assertEqual(cancelled.status_code, status.HTTP_200_OK)
         self.tech.refresh_from_db()
         self.assertEqual(self.tech.availability_status, Technicians.Availability.AVAILABLE)

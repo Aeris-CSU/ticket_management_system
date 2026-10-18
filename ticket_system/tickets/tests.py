@@ -148,7 +148,7 @@ class TicketApiTests(APITestCase):
                 ticket.status = current
                 ticket.save(update_fields=['status'])
                 response = self.client.patch(
-                    f'/api/tickets/{ticket.pk}/status/', {'status': 'CANCELLED'}, format='json',
+                    f'/api/tickets/{ticket.pk}/status/', {'status': 'CANCELLED', 'cancellation_reason': 'Duplicate request.'}, format='json',
                 )
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(Tickets.objects.get(pk=ticket.pk).status, Tickets.Status.CANCELLED)
@@ -190,3 +190,101 @@ class TicketApiTests(APITestCase):
             'problem_title': 'No', 'problem_description': 'No', 'customer': self.customer.pk,
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cancellation_requires_reason_and_customer_can_read_it(self):
+        ticket = self.create_ticket()
+        self.client.force_authenticate(self.admin)
+        url = f'/api/tickets/{ticket.pk}/status/'
+        for reason in (None, '', '   ', 'x' * 2001):
+            payload = {'status': 'CANCELLED'}
+            if reason is not None:
+                payload['cancellation_reason'] = reason
+            self.assertEqual(self.client.patch(url, payload, format='json').status_code, 400)
+            ticket.refresh_from_db()
+            self.assertEqual(ticket.status, Tickets.Status.OPEN)
+        response = self.client.patch(url, {'status': 'CANCELLED', 'cancellation_reason': '  Duplicate request.  '}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.client.force_authenticate(self.customer.user)
+        detail = self.client.get(f'/api/tickets/{ticket.pk}/')
+        self.assertEqual(detail.data['cancellation_reason'], 'Duplicate request.')
+
+    def test_customer_cannot_supply_admin_cancellation_reason(self):
+        ticket = self.create_ticket()
+        self.client.force_authenticate(self.customer.user)
+        response = self.client.patch(f'/api/tickets/{ticket.pk}/status/', {
+            'status': 'CANCELLED', 'cancellation_reason': 'Pretend admin message',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, Tickets.Status.OPEN)
+
+    def test_ticket_numbers_increment_reset_by_manila_date_and_are_not_reused(self):
+        from datetime import datetime, timezone as dt_timezone
+        from unittest.mock import patch
+        with patch('tickets.models.timezone.now', return_value=datetime(2026, 10, 18, 15, 59, tzinfo=dt_timezone.utc)):
+            first = self.create_ticket()
+            second = self.create_ticket()
+            self.assertEqual(first.ticket_number, 'TCK 20261018-0001')
+            self.assertEqual(second.ticket_number, 'TCK 20261018-0002')
+            second.delete()
+            third = self.create_ticket()
+            self.assertEqual(third.ticket_number, 'TCK 20261018-0003')
+            first.problem_title = 'Edited'
+            first.save()
+            self.assertEqual(first.ticket_number, 'TCK 20261018-0001')
+        with patch('tickets.models.timezone.now', return_value=datetime(2026, 10, 18, 16, 0, tzinfo=dt_timezone.utc)):
+            tomorrow = self.create_ticket()
+            self.assertEqual(tomorrow.ticket_number, 'TCK 20261019-0001')
+
+    def test_api_generates_number_and_ignores_client_number(self):
+        self.client.force_authenticate(self.customer.user)
+        response = self.client.post('/api/tickets/', {
+            'problem_title': 'Help', 'problem_description': 'Issue', 'ticket_number': 'FAKE',
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertRegex(response.data['ticket_number'], r'^TCK \d{8}-\d{4,}$')
+        ticket_id = response.data['id']
+        self.client.force_authenticate(self.admin)
+        changed = self.client.put(f'/api/tickets/{ticket_id}/', {'ticket_number': 'FAKE', 'problem_title': 'Updated'}, format='json')
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(changed.data['ticket_number'], response.data['ticket_number'])
+
+    def test_assigned_technician_cannot_edit_details_on_either_route(self):
+        from assignments.models import Assignments
+        ticket = self.create_ticket()
+        ticket.status = Tickets.Status.ASSIGNED
+        ticket.save(update_fields=['status'])
+        Assignments.objects.create(tickets=ticket, technicians=self.technician, is_active=True)
+        self.client.force_authenticate(self.technician.user)
+        for prefix in ('/api/tickets/', '/api/tickets/update/'):
+            response = self.client.put(f'{prefix}{ticket.pk}/', {
+                'problem_title': 'Changed', 'problem_description': 'Changed',
+                'customer': self.other_customer.pk, 'address': 'Changed', 'contact_number': 'Changed',
+            }, format='json')
+            self.assertEqual(response.status_code, 403)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.problem_title, 'Wi-Fi issue')
+        self.assertEqual(ticket.customer_id, self.customer.pk)
+        self.assertEqual(ticket.address, '')
+        self.client.force_authenticate(self.admin)
+        for prefix in ('/api/tickets/', '/api/tickets/update/'):
+            self.assertEqual(self.client.put(f'{prefix}{ticket.pk}/', {'problem_title': 'Admin edit'}, format='json').status_code, 200)
+
+    def test_admin_removes_terminal_tickets_and_preserves_history(self):
+        from assignments.models import Assignments
+        for current in (Tickets.Status.RESOLVED, Tickets.Status.CANCELLED):
+            ticket = self.create_ticket()
+            ticket.status = current
+            ticket.save(update_fields=['status'])
+            assignment = Assignments.objects.create(tickets=ticket, technicians=self.technician, is_active=False)
+            self.client.force_authenticate(self.customer.user)
+            self.assertEqual(self.client.delete(f'/api/tickets/{ticket.pk}/').status_code, 403)
+            self.client.force_authenticate(self.admin)
+            self.assertEqual(self.client.delete(f'/api/tickets/{ticket.pk}/').status_code, 204)
+            ticket.refresh_from_db()
+            self.assertIsNotNone(ticket.deleted_at)
+            self.assertTrue(Assignments.objects.filter(pk=assignment.pk).exists())
+            self.assertEqual(self.client.get(f'/api/tickets/{ticket.pk}/').status_code, 404)
+            self.assertNotIn(ticket.pk, [item['id'] for item in self.client.get('/api/tickets/').data])
+            self.client.force_authenticate(self.customer.user)
+            self.assertNotIn(ticket.pk, [item['id'] for item in self.client.get('/api/tickets/').data])

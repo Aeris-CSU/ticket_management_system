@@ -26,3 +26,11 @@ export async function createTechnician(details: NewTechnician) {
   const { data } = await api.post<CreatedTechnician>('register-technicians/', details)
   return data
 }
+
+export async function deleteTechnician(id: number) {
+  await api.delete(`technicians/${id}/`)
+}
+
+export async function deleteCustomer(id: number) {
+  await api.delete(`customers/${id}/`)
+}

@@ -2099,3 +2099,125 @@ html[data-theme='dark'] .primary-nav > a:not(.nav-login):hover { color: var(--li
   .ticket-record-modal .ticket-detail-dates { grid-template-columns: 1fr; }
   .ticket-record-modal .ticket-detail-dates p { grid-template-columns: minmax(90px, .7fr) minmax(0, 1fr); }
 }
+
+/* Shared sidebar controls and footer. */
+.dashboard-sidebar-footer { margin-top: auto; }
+.dashboard-sidebar-footer .dashboard-sidebar-note { margin: 0 7px 12px; }
+.dashboard-sidebar-footer .dashboard-logout { width: calc(100% - 14px); margin: 0 7px; }
+@media (min-width: 701px) {
+  .dashboard-menu-button { display: flex; flex: 0 0 auto; }
+  .dashboard-header h1 { flex: 1; }
+  .dashboard-shell.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-shell.sidebar-collapsed .dashboard-sidebar { display: none; }
+}
+
+.ticket-cancellation-form, .ticket-cancellation-message { margin-top: 20px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); }
+.ticket-cancellation-message h4 { margin: 0 0 10px; }
+.ticket-cancellation-message p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.directory-row-actions { display: flex; align-items: center; gap: 8px; }
+.technician-delete-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; padding: 7px; color: #dc2626; background: transparent; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; vertical-align: middle; }
+.technician-delete-icon:hover { background: rgb(220 38 38 / 10%); }
+.technician-delete-icon:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+html[data-theme='dark'] .technician-delete-icon { color: #fca5a5; }
+
+.dashboard-delete-account { display: flex; width: calc(100% - 14px); align-items: center; justify-content: center; gap: 8px; margin: 10px 7px 0; padding: 10px 8px; background: transparent; border: 0; border-radius: 8px; color: #b91c1c; font: inherit; font-size: 12px; cursor: pointer; }
+.dashboard-delete-account:hover { background: rgb(220 38 38 / 8%); }
+.dashboard-delete-account:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+html[data-theme='dark'] .dashboard-delete-account { color: #fca5a5; }
+
+.ticket-filters, .customer-search-bar { flex-wrap: wrap; gap: 14px; }
+.ticket-filters > .button, .customer-search-bar > .button { align-self: flex-end; }
+.filter-result-count { color: var(--muted); font-size: 13px; margin: 12px 0; }
+
+.customer-search-bar > .ticket-filter-control { width: auto; flex: 1 1 170px; min-width: 0; }
+.customer-search-bar > .ticket-filter-control:first-child { flex: 2 1 280px; }
+.ticket-filters > .ticket-filter-control { min-width: 150px; flex: 1 1 160px; }
+@media (max-width: 700px) {
+  .ticket-filters > .ticket-filter-control, .customer-search-bar > .ticket-filter-control, .customer-search-bar > .ticket-filter-control:first-child { flex: 0 1 auto; width: 100%; min-width: 0; }
+}
+
+/* Restrained visual treatment for all three role dashboards. */
+.dashboard-overview { display: grid; gap: 26px; }
+.dashboard-overview .dashboard-page-intro {
+  position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center;
+  justify-content: space-between; gap: 24px; min-height: 168px; padding: 30px 32px;
+  border: 1px solid #d5e3f6; border-radius: 18px;
+  background: linear-gradient(115deg, #ffffff 0%, #edf4ff 72%, #e3eefc 100%);
+  box-shadow: 0 8px 28px rgb(30 64 110 / 4%);
+}
+.dashboard-overview .dashboard-page-intro::before,
+.dashboard-overview .dashboard-page-intro::after { content: ''; position: absolute; z-index: -1; pointer-events: none; border: 1px solid rgb(67 114 187 / 12%); border-radius: 50%; width: 250px; height: 250px; right: -65px; top: -110px; }
+.dashboard-overview .dashboard-page-intro::after { width: 360px; height: 360px; right: -120px; top: -165px; }
+.dashboard-overview .dashboard-intro-copy { max-width: 660px; }
+.dashboard-overview .dashboard-page-intro .eyebrow { display: block; margin: 0 0 12px; color: #456da4; font-size: 10px; font-weight: 750; letter-spacing: .16em; }
+.dashboard-overview .dashboard-page-intro h2 { margin: 0; font-size: clamp(24px, 2.7vw, 32px); font-weight: 750; letter-spacing: -.04em; line-height: 1.2; }
+.dashboard-overview .dashboard-intro-copy > p:not(.eyebrow) { margin-top: 12px; font-size: 13px; line-height: 1.75; }
+.dashboard-overview .dashboard-stat-grid { margin: 0; gap: 18px; }
+.dashboard-overview .dashboard-stat-card { --stat-accent: #356cbe; position: relative; overflow: hidden; min-height: 155px; padding: 24px; border-radius: 14px; gap: 12px; box-shadow: 0 5px 16px rgb(30 64 110 / 4%); }
+.dashboard-overview .dashboard-stat-card:nth-child(2) { --stat-accent: #a77925; }
+.dashboard-overview .dashboard-stat-card:nth-child(3) { --stat-accent: #8060b4; }
+.dashboard-overview .dashboard-stat-card:nth-child(4) { --stat-accent: #298477; }
+.dashboard-overview .dashboard-stat-card::before { content: ''; position: absolute; top: 24px; bottom: 24px; left: 0; width: 3px; border-radius: 0 4px 4px 0; background: var(--stat-accent); opacity: .7; }
+.dashboard-overview .dashboard-stat-card > span:not(.dashboard-stat-icon) { padding-right: 45px; font-size: 12px; font-weight: 600; }
+.dashboard-overview .dashboard-stat-card strong { font-size: 34px; line-height: 1; letter-spacing: -.045em; }
+.dashboard-overview .dashboard-stat-card > .dashboard-stat-icon { position: absolute; right: 20px; top: 20px; display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; padding: 0; color: var(--stat-accent); background: rgb(255 255 255 / 65%); border: 1px solid rgb(255 255 255 / 85%); border-radius: 11px; }
+.dashboard-stat-icon svg { width: 20px; height: 20px; }
+.dashboard-overview .dashboard-recent { overflow: hidden; border-radius: 16px; box-shadow: 0 6px 24px rgb(30 64 110 / 4%); }
+.dashboard-overview .dashboard-section-heading { padding: 24px; border-bottom: 1px solid var(--border); }
+.dashboard-overview .dashboard-section-heading h3 { font-weight: 700; letter-spacing: -.025em; }
+.dashboard-overview .dashboard-section-heading p { margin-top: 7px; line-height: 1.6; }
+.dashboard-nav-item { transition: background-color 140ms ease, color 140ms ease; }
+.dashboard-brand .brand-mark { box-shadow: 0 5px 14px rgb(37 99 235 / 20%); }
+.dashboard-role-caption { letter-spacing: .09em; }
+.dashboard-view > .dashboard-view-heading { padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+html[data-theme='dark'] .dashboard-overview .dashboard-page-intro { background: linear-gradient(115deg, #152439, #192e4c); border-color: #2a4262; box-shadow: 0 8px 28px rgb(0 0 0 / 10%); }
+html[data-theme='dark'] .dashboard-overview .dashboard-page-intro .eyebrow { color: #91b5e8; }
+html[data-theme='dark'] .dashboard-overview .dashboard-page-intro::before,
+html[data-theme='dark'] .dashboard-overview .dashboard-page-intro::after { border-color: rgb(145 181 232 / 12%); }
+html[data-theme='dark'] .dashboard-overview .dashboard-stat-card > .dashboard-stat-icon { color: #b3c9ec; background: rgb(145 181 232 / 8%); border-color: rgb(145 181 232 / 12%); }
+@media (max-width: 700px) {
+  .dashboard-overview .dashboard-page-intro { align-items: flex-start; flex-direction: column; min-height: auto; padding: 24px; gap: 20px; }
+  .dashboard-overview .dashboard-stat-grid { gap: 12px; }
+  .dashboard-overview .dashboard-stat-card { padding: 20px 16px; min-height: 145px; }
+  .dashboard-overview .dashboard-stat-card > .dashboard-stat-icon { right: 12px; top: 16px; width: 30px; height: 30px; border-radius: 9px; }
+  .dashboard-overview .dashboard-section-heading { padding: 20px; }
+}
+
+.ticket-filters.ticket-filter-toolbar { display: block; padding: 16px 18px; }
+.ticket-filter-primary { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px; }
+.ticket-filter-primary > .ticket-filter-control { flex: 0 1 155px; min-width: 130px; }
+.ticket-filter-primary > .ticket-search-wide { flex: 1 1 320px; min-width: 220px; }
+.ticket-filter-primary input, .ticket-filter-primary select, .ticket-filter-extra input, .ticket-filter-extra select { min-height: 42px; }
+.ticket-more-filters { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 13px; white-space: nowrap; font-size: 12px; }
+.ticket-clear-filters { min-height: 42px; padding: 8px 3px; color: var(--muted); background: transparent; border: 0; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.ticket-clear-filters:hover { color: var(--blue); text-decoration: underline; }
+.ticket-clear-filters:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+.ticket-filter-extra { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.ticket-filter-extra > .ticket-filter-control { flex: 1 1 190px; max-width: 300px; }
+@media (max-width: 700px) {
+  .ticket-filter-primary > .ticket-search-wide { flex-basis: 100%; min-width: 0; }
+  .ticket-filter-primary > .ticket-filter-control { flex: 1 1 130px; }
+  .ticket-filter-extra > .ticket-filter-control { max-width: none; flex-basis: 100%; }
+}
+
+.customer-search-bar.directory-filter-toolbar { display: block; padding: 18px; }
+.directory-filter-main { display: grid; grid-template-columns: minmax(240px, 1fr) 210px auto auto; align-items: end; gap: 16px; }
+.directory-filter-main > .ticket-filter-control,
+.directory-filter-extra > .ticket-filter-control,
+.technicians-directory .directory-filter-main > .ticket-filter-control:first-child,
+.directory-filter-extra > .technician-availability-filter { width: 100%; min-width: 0; flex: none; }
+.directory-filter-main input, .directory-filter-main select, .directory-filter-extra select { width: 100%; min-width: 0; min-height: 42px; }
+.directory-filter-main label, .directory-filter-extra label { font-size: 12px; }
+.directory-filter-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 14px; white-space: nowrap; font-size: 12px; }
+.directory-filter-extra { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.directory-filter-results { display: block; margin: 14px 2px; }
+@media (max-width: 850px) {
+  .directory-filter-main { grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; }
+  .directory-filter-main > .ticket-filter-control:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 500px) {
+  .directory-filter-main { grid-template-columns: minmax(0, 1fr) auto; }
+  .directory-filter-main > .ticket-clear-filters { grid-column: 1 / -1; justify-self: start; min-height: 30px; }
+  .directory-filter-extra { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,6 +8,17 @@ from technicians.models import Technicians
 from technicians.serializers import TechniciansSerializer, TechnicianListSerializer
 from authentication.permissions import AdminPermission, TechnicianPermission
 from django.shortcuts import get_object_or_404
+
+
+def delete_technician_account(tech):
+    try:
+        with transaction.atomic():
+            if tech.assignments_set.exists():
+                return Response({'detail': 'Technicians with assignment history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
+            tech.user.delete()
+    except ProtectedError:
+        return Response({'detail': 'Technicians with assignment history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TechnicianRegister(APIView):
@@ -52,10 +65,7 @@ class TechnicianDelete(APIView):
     def delete(self, request, pk):
         tech = get_object_or_404(Technicians, pk=pk)
         self.check_object_permissions(request, tech)
-        if tech.assignments_set.exists():
-            return Response({'detail': 'Technicians with assignment history cannot be deleted. Mark the technician unavailable instead.'}, status=status.HTTP_409_CONFLICT)
-        tech.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return delete_technician_account(tech)
 
 class TechnicianDetail(APIView):
     permission_classes = [AdminPermission]
@@ -98,10 +108,7 @@ class TechnicianDetail(APIView):
                 data = {"detail" : "Technician does not exist."},
                 status = status.HTTP_404_NOT_FOUND,
             )
-        if tech.assignments_set.exists():
-            return Response({'detail': 'Technicians with assignment history cannot be deleted. Mark the technician unavailable instead.'}, status=status.HTTP_409_CONFLICT)
-        tech.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return delete_technician_account(tech)
 
 
 

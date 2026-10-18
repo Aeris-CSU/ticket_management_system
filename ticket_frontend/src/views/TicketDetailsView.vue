@@ -21,6 +21,8 @@ const assignmentError = ref('')
 const assignmentMessage = ref('')
 const statusError = ref('')
 const statusMessage = ref('')
+const cancellationReason = ref('')
+const showCancellationForm = ref(false)
 const isAssigning = ref(false)
 const isUpdatingStatus = ref(false)
 const selectedTechnicianId = ref('')
@@ -45,7 +47,7 @@ const canResolve = computed(() => isTechnician.value && Boolean(activeAssignment
 const canCancel = computed(() => Boolean(ticket.value && (isAdmin.value
   ? ['OPEN', 'ASSIGNED', 'ONGOING'].includes(ticket.value.status)
   : !isTechnician.value && ticket.value.status === 'OPEN')))
-const canEditDetails = computed(() => Boolean(ticket.value && !['RESOLVED', 'CANCELLED'].includes(ticket.value.status) && (isAdmin.value || (isTechnician.value && activeAssignment.value))))
+const canEditDetails = computed(() => Boolean(ticket.value && !['RESOLVED', 'CANCELLED'].includes(ticket.value.status) && isAdmin.value))
 
 function startEditing() {
   if (!ticket.value || !canEditDetails.value) return
@@ -143,11 +145,18 @@ async function submitAssignment() {
 async function updateStatus(nextStatus: 'ONGOING' | 'RESOLVED' | 'CANCELLED') {
   const permitted = nextStatus === 'CANCELLED' ? canCancel.value : nextStatus === 'ONGOING' ? canStartWork.value : canResolve.value
   if (!ticket.value || isUpdatingStatus.value || !permitted) return
+  if (nextStatus === 'CANCELLED' && isAdmin.value && !cancellationReason.value.trim()) {
+    statusError.value = 'Explain why you are cancelling this ticket.'
+    return
+  }
   isUpdatingStatus.value = true
   statusError.value = ''
   statusMessage.value = ''
   try {
-    ticket.value = await updateTicketStatus(String(ticket.value.id), nextStatus)
+    ticket.value = nextStatus === 'CANCELLED' && isAdmin.value
+      ? await updateTicketStatus(String(ticket.value.id), nextStatus, cancellationReason.value.trim())
+      : await updateTicketStatus(String(ticket.value.id), nextStatus)
+    showCancellationForm.value = false
     if (nextStatus === 'CANCELLED' || nextStatus === 'RESOLVED') isEditing.value = false
     emit('changed', ticket.value)
     statusMessage.value = nextStatus === 'CANCELLED' ? 'Ticket cancelled.' : nextStatus === 'ONGOING' ? 'Work started. Ticket status updated.' : 'Ticket marked as resolved.'
@@ -191,7 +200,7 @@ onMounted(async () => {
       <div v-if="statusError" class="form-message form-error" role="alert">{{ statusError }}</div>
       <div v-if="statusMessage" class="form-message form-success" role="status">{{ statusMessage }}</div>
       <article class="ticket-detail-card">
-        <div class="ticket-detail-top"><span class="ticket-table-id">Ticket #{{ ticket.id }}</span><TicketStatusBadge :status="ticket.status" /><button v-if="canEditDetails && !isEditing" class="button button-secondary ticket-edit-button" type="button" @click="startEditing">Edit Details</button></div>
+        <div class="ticket-detail-top"><span class="ticket-table-id">{{ ticket.ticket_number || `Ticket #${ticket.id}` }}</span><TicketStatusBadge :status="ticket.status" /><button v-if="canEditDetails && !isEditing" class="button button-secondary ticket-edit-button" type="button" @click="startEditing">Edit Details</button></div>
         <div v-if="detailsError" class="form-message form-error" role="alert">{{ detailsError }}</div>
         <div v-if="detailsMessage" class="form-message form-success" role="status">{{ detailsMessage }}</div>
         <form v-if="isEditing" class="ticket-detail-edit" @submit.prevent="saveDetails">
@@ -215,6 +224,10 @@ onMounted(async () => {
           <p v-if="embedded && (isAdmin || isTechnician)"><span>Customer</span><strong class="ticket-metadata-value">{{ ticket.customer_name }}</strong></p>
           <p><span>Created</span><time :datetime="ticket.created_at">{{ new Date(ticket.created_at).toLocaleString() }}</time></p>
           <p><span>Last updated</span><time :datetime="ticket.updated_at">{{ new Date(ticket.updated_at).toLocaleString() }}</time></p>
+        </div>
+        <div v-if="ticket.status === 'CANCELLED' && ticket.cancellation_reason" class="ticket-cancellation-message">
+          <h4>Reason for cancellation</h4>
+          <p>{{ ticket.cancellation_reason }}</p>
         </div>
         <div class="ticket-info-grid">
         <div class="ticket-detail-description"><h4>Description</h4><p>{{ ticket.problem_description }}</p></div>
@@ -258,7 +271,17 @@ onMounted(async () => {
           <p v-for="record in assignmentHistory" :key="record.id">#{{ record.id }} · {{ record.technician_name }} · {{ record.is_active ? 'Active' : 'Previous assignment' }}</p>
         </div>
       </section>
-      <div v-if="canCancel" class="ticket-cancel-actions"><button class="button button-secondary" type="button" :disabled="isUpdatingStatus || isSavingDetails || isAssigning" @click="updateStatus('CANCELLED')">{{ isUpdatingStatus ? 'Cancelling...' : 'Cancel Ticket' }}</button></div>
+      <form v-if="canCancel && isAdmin && showCancellationForm" class="ticket-cancellation-form" @submit.prevent="updateStatus('CANCELLED')">
+        <label class="ticket-form-field" for="ticket-cancellation-reason">Reason for cancellation
+          <textarea id="ticket-cancellation-reason" v-model="cancellationReason" rows="4" maxlength="2000" required :disabled="isUpdatingStatus" aria-describedby="cancellation-help"></textarea>
+        </label>
+        <p id="cancellation-help" class="assignment-hint">This message will appear in the customer's ticket details.</p>
+        <div class="ticket-form-actions">
+          <button class="button button-secondary" type="button" :disabled="isUpdatingStatus" @click="showCancellationForm = false">Keep Ticket</button>
+          <button class="button button-primary" type="submit" :disabled="isUpdatingStatus || isSavingDetails || isAssigning">{{ isUpdatingStatus ? 'Cancelling...' : 'Confirm Cancellation' }}</button>
+        </div>
+      </form>
+      <div v-if="canCancel && !showCancellationForm" class="ticket-cancel-actions"><button class="button button-secondary" type="button" :disabled="isUpdatingStatus || isSavingDetails || isAssigning" @click="isAdmin ? (showCancellationForm = true) : updateStatus('CANCELLED')">{{ isUpdatingStatus ? 'Cancelling...' : 'Cancel Ticket' }}</button></div>
       </article>
     </template>
   </section>

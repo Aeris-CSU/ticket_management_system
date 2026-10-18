@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -17,7 +18,7 @@ class TicketsView(APIView):
     permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
 
     def get_queryset(self, request):
-        queryset = Tickets.objects.select_related('customer__user').all()
+        queryset = Tickets.objects.select_related('customer__user').filter(deleted_at__isnull=True)
         if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
             queryset = queryset.filter(customer__user=request.user)
         elif request.user.role == Authentication.ROLE_CHOICES.TECHNICIAN:
@@ -44,11 +45,11 @@ class TicketDetailBase(APIView):
     permission_classes = [AdminPermission | TechnicianPermission | CustomerPermission]
 
     def get_ticket(self, pk):
-        return get_object_or_404(Tickets.objects.select_related('customer__user'), pk=pk)
+        return get_object_or_404(Tickets.objects.select_related('customer__user'), pk=pk, deleted_at__isnull=True)
 
 
 class TicketsUpdate(TicketDetailBase):
-    permission_classes = [AdminPermission | TechnicianPermission]
+    permission_classes = [AdminPermission]
 
     def put(self, request, pk):
         ticket = self.get_ticket(pk)
@@ -63,6 +64,10 @@ class TicketsDelete(TicketDetailBase):
 
     def delete(self, request, pk):
         ticket = self.get_ticket(pk)
+        if ticket.status in (Tickets.Status.RESOLVED, Tickets.Status.CANCELLED):
+            ticket.deleted_at = timezone.now()
+            ticket.save(update_fields=['deleted_at'])
+            return Response(status=status.HTTP_204_NO_CONTENT)
         if ticket.assignments_set.exists():
             return Response({'detail': 'Tickets with assignment history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
         ticket.delete()
@@ -76,8 +81,8 @@ class TicketsDetail(TicketDetailBase):
         return Response(TicketsSerializer(ticket).data)
 
     def put(self, request, pk):
-        if request.user.role == Authentication.ROLE_CHOICES.CUSTOMER:
-            raise PermissionDenied('Customers cannot edit ticket details after submission.')
+        if request.user.role != Authentication.ROLE_CHOICES.ADMIN:
+            raise PermissionDenied('Only administrators can edit ticket details.')
         return TicketsUpdate().put(request, pk)
 
     def delete(self, request, pk):
@@ -119,8 +124,16 @@ class TicketStatusUpdate(TicketDetailBase):
             if new_status not in permitted:
                 raise ValidationError({'status': f'Cannot transition a {ticket.status} ticket to {new_status}.'})
 
+            reason = serializer.validated_data.get('cancellation_reason', '')
+            if new_status == Tickets.Status.CANCELLED and role == Authentication.ROLE_CHOICES.ADMIN:
+                if not reason:
+                    raise ValidationError({'cancellation_reason': 'Explain why you are cancelling this ticket.'})
+                ticket.cancellation_reason = reason
+            elif reason:
+                raise ValidationError({'cancellation_reason': 'Only administrators cancelling a ticket can provide a reason.'})
+
             ticket.status = new_status
-            ticket.save(update_fields=['status', 'updated_at'])
+            ticket.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
             if new_status in (Tickets.Status.RESOLVED, Tickets.Status.CANCELLED):
                 technician_ids = list(Assignments.objects.filter(tickets=ticket, is_active=True).values_list('technicians_id', flat=True))
                 Assignments.objects.filter(tickets=ticket, is_active=True).update(is_active=False)

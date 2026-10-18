@@ -1,11 +1,38 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import DirectoryDetailsModal from './DirectoryDetailsModal.vue'
+import { api } from '@/services/api'
+import { readableAuthError } from '@/services/auth'
 import type { UserRole } from '@/types/auth'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+
+const confirmDelete = ref(false)
+const deleting = ref(false)
+const deleteError = ref('')
+async function deleteMyAccount() {
+  if (deleting.value) return
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await api.delete('accounts/me/')
+    confirmDelete.value = false
+    auth.logout()
+    await router.replace('/')
+  } catch (error) {
+    deleteError.value = readableAuthError(error, 'Could not delete your account. Please try again.')
+  } finally { deleting.value = false }
+}
+function logout() {
+  auth.logout()
+  void router.replace('/')
+}
 const role = computed(() => route.meta.role as UserRole)
 
 const navigation: Record<UserRole, { label: string; path?: string }[]> = {
@@ -59,6 +86,19 @@ const roleNames: Record<UserRole, string> = {
         </span>
       </template>
     </nav>
-    <p class="dashboard-sidebar-note">Support Made Simple.</p>
+    <div class="dashboard-sidebar-footer">
+      <p class="dashboard-sidebar-note">Support Made Simple.</p>
+      <button class="dashboard-logout" type="button" @click="logout">Log out</button>
+      <button v-if="auth.user?.role === 'CUSTOMER' || auth.user?.role === 'TECHNICIAN'" class="dashboard-delete-account" type="button" @click="confirmDelete = true; deleteError = ''">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
+        Delete my account
+      </button>
+    </div>
   </aside>
+  <DirectoryDetailsModal v-if="confirmDelete" title="Delete my account" :dismissible="!deleting" @close="confirmDelete = false">
+    <p>Delete your account and login permanently? This cannot be undone.</p>
+    <p>Accounts with ticket or assignment history cannot be deleted.</p>
+    <p v-if="deleteError" class="form-message form-error" role="alert">{{ deleteError }}</p>
+    <div class="ticket-form-actions"><button class="button button-secondary" type="button" :disabled="deleting" @click="confirmDelete = false">Keep My Account</button><button class="button button-primary confirm-self-delete" type="button" :disabled="deleting" @click="deleteMyAccount">{{ deleting ? 'Deleting...' : 'Delete My Account' }}</button></div>
+  </DirectoryDetailsModal>
 </template>

@@ -1,9 +1,11 @@
 export type TicketStatus = 'OPEN' | 'ASSIGNED' | 'ONGOING' | 'RESOLVED' | 'CANCELLED'
 
 export interface Ticket {
+  ticket_number?: string
   id: number
   problem_title: string
   problem_description: string
+  cancellation_reason?: string
   status: TicketStatus
   customer: number
   customer_name: string

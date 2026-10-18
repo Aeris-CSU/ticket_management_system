@@ -74,3 +74,28 @@ class AccountList(APIView):
 
         serializer = AuthenticationSerializer(request.user)
         return Response(serializer.data)
+
+
+class DeleteOwnAccount(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        from django.db.models.deletion import ProtectedError
+        from customers.views import delete_customer_account
+        from technicians.views import delete_technician_account
+        from customers.models import Customers
+        from technicians.models import Technicians
+        with transaction.atomic():
+            user = Authentication.objects.select_for_update().get(pk=request.user.pk)
+            if user.role not in ('CUSTOMER', 'TECHNICIAN'):
+                return Response({'detail': 'Only customers and technicians can delete their own accounts.'}, status=status.HTTP_403_FORBIDDEN)
+            model = Customers if user.role == 'CUSTOMER' else Technicians
+            profile = model.objects.filter(user=user).first()
+            if profile:
+                return delete_customer_account(profile) if user.role == 'CUSTOMER' else delete_technician_account(profile)
+            try:
+                with transaction.atomic():
+                    user.delete()
+            except ProtectedError:
+                return Response({'detail': 'Your account has protected history and cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
+        return Response(status=status.HTTP_204_NO_CONTENT)

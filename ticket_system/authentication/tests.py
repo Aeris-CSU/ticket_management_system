@@ -185,3 +185,42 @@ class AuthenticationApiTests(APITestCase):
         self.assertIn('password', response.data)
         customer.refresh_from_db()
         self.assertTrue(customer.check_password('CustomerPass123!x'))
+
+
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class SelfDeletionTests(APITestCase):
+    def test_customer_and_technician_can_only_delete_themselves(self):
+        from technicians.models import Technicians
+        for role in ('CUSTOMER', 'TECHNICIAN'):
+            user = Authentication.objects.create_user(username=role, role=role)
+            other = Authentication.objects.create_user(username=role + '-other', role=role)
+            model = Customers if role == 'CUSTOMER' else Technicians
+            profile = model.objects.create(user=user)
+            self.client.force_authenticate(user)
+            response = self.client.delete('/api/accounts/me/', {'id': other.pk}, format='json')
+            self.assertEqual(response.status_code, 204)
+            self.assertFalse(Authentication.objects.filter(pk=user.pk).exists())
+            self.assertFalse(model.objects.filter(pk=profile.pk).exists())
+            self.assertTrue(Authentication.objects.filter(pk=other.pk).exists())
+
+    def test_admin_and_anonymous_cannot_self_delete(self):
+        self.assertIn(self.client.delete('/api/accounts/me/').status_code, (401, 403))
+        admin = Authentication.objects.create_user(username='admin-self', role='ADMIN')
+        self.client.force_authenticate(admin)
+        self.assertEqual(self.client.delete('/api/accounts/me/').status_code, 403)
+        self.assertTrue(Authentication.objects.filter(pk=admin.pk).exists())
+
+    def test_history_blocks_self_deletion(self):
+        from tickets.models import Tickets
+        from technicians.models import Technicians
+        from assignments.models import Assignments
+        customer_user = Authentication.objects.create_user(username='customer-self', role='CUSTOMER')
+        customer = Customers.objects.create(user=customer_user)
+        ticket = Tickets.objects.create(customer=customer, problem_title='Issue', problem_description='Help')
+        tech_user = Authentication.objects.create_user(username='tech-self', role='TECHNICIAN')
+        tech = Technicians.objects.create(user=tech_user, specialization='IT')
+        Assignments.objects.create(tickets=ticket, technicians=tech, is_active=False)
+        for user in (customer_user, tech_user):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.delete('/api/accounts/me/').status_code, 409)
+            self.assertTrue(Authentication.objects.filter(pk=user.pk).exists())

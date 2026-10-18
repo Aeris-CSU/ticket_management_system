@@ -8,9 +8,9 @@ import { useAuthStore } from '@/stores/auth'
 import type { Assignment, Technician } from '@/types/admin'
 import type { Ticket } from '@/types/ticket'
 
-const ticketApi = vi.hoisted(() => ({ listTickets: vi.fn(), getTicket: vi.fn(), updateTicket: vi.fn(), updateTicketStatus: vi.fn() }))
+const ticketApi = vi.hoisted(() => ({ listTickets: vi.fn(), getTicket: vi.fn(), updateTicket: vi.fn(), updateTicketStatus: vi.fn(), deleteTicket: vi.fn() }))
 const assignmentApi = vi.hoisted(() => ({ listAssignments: vi.fn(), createAssignment: vi.fn(), reassignTechnician: vi.fn(), unassignTechnician: vi.fn() }))
-const directoryApi = vi.hoisted(() => ({ listCustomers: vi.fn(), listTechnicians: vi.fn(), createTechnician: vi.fn() }))
+const directoryApi = vi.hoisted(() => ({ listCustomers: vi.fn(), listTechnicians: vi.fn(), createTechnician: vi.fn(), deleteTechnician: vi.fn(), deleteCustomer: vi.fn() }))
 
 vi.mock('@/services/tickets', () => ticketApi)
 vi.mock('@/services/assignments', () => assignmentApi)
@@ -82,6 +82,47 @@ describe('administrator ticket management', () => {
     await wrapper.get('input[type="search"]').setValue('printer')
     expect(wrapper.get('.ticket-table-wrap').text()).toContain('Printer is jammed')
     expect(wrapper.get('.ticket-table-wrap').text()).not.toContain('Cannot connect to Wi-Fi')
+  })
+
+  it('combines keywords, Philippine dates and technician history and clears filters', async () => {
+    assignmentApi.listAssignments.mockResolvedValueOnce([assignmentRecord])
+    const wrapper = mountRouter()
+    await router.push('/admin/tickets')
+    await flushPromises()
+    await wrapper.get('input[type="search"]').setValue('RIVERA   network')
+    expect(wrapper.get('.ticket-more-filters').attributes('aria-expanded')).toBe('false')
+    await wrapper.get('.ticket-more-filters').trigger('click')
+    expect(wrapper.get('.ticket-more-filters').attributes('aria-expanded')).toBe('true')
+    await wrapper.get('[aria-label="Submitted from"]').setValue('2026-05-12')
+    await wrapper.get('[aria-label="Submitted through"]').setValue('2026-05-12')
+    await wrapper.findAll('.ticket-filters select')[2]!.setValue('7')
+    expect(wrapper.findAll('.ticket-table tbody tr')).toHaveLength(1)
+    expect(wrapper.text()).toContain('1 of 2 tickets')
+    await wrapper.get('[aria-label="Submitted from"]').setValue('2026-05-13')
+    expect(wrapper.text()).toContain('The end date must be on or after the start date.')
+    await wrapper.findAll('button').find(button => button.text() === 'Clear filters')!.trigger('click')
+    expect(wrapper.findAll('.ticket-table tbody tr')).toHaveLength(2)
+  })
+
+  it('combines technician specialization, workload, availability and keywords', async () => {
+    assignmentApi.listAssignments.mockResolvedValueOnce([assignmentRecord])
+    const wrapper = mountRouter()
+    await router.push('/admin/technicians')
+    await flushPromises()
+    await wrapper.get('input[type="search"]').setValue('Taylor network')
+    expect(wrapper.get('.directory-filter-toggle').attributes('aria-expanded')).toBe('false')
+    await wrapper.get('.directory-filter-toggle').trigger('click')
+    expect(wrapper.get('.directory-filter-toggle').attributes('aria-expanded')).toBe('true')
+    const filters = wrapper.findAll('.directory-filter-extra select')
+    await filters[0]!.setValue('AVAILABLE')
+    await filters[1]!.setValue('Network support')
+    await filters[2]!.setValue('WITH')
+    expect(wrapper.findAll('.directory-table tbody tr')).toHaveLength(1)
+    expect(wrapper.get('.directory-table').text()).toContain('Sam Taylor')
+    await filters[2]!.setValue('WITHOUT')
+    expect(wrapper.text()).toContain('No matching technicians')
+    await wrapper.findAll('button').find(button => button.text() === 'Clear filters')!.trigger('click')
+    expect(wrapper.findAll('.directory-table tbody tr')).toHaveLength(2)
   })
 
   it('counts backend statuses accurately and refreshes the active queue', async () => {
@@ -231,6 +272,67 @@ describe('administrator ticket management', () => {
     expect(router.currentRoute.value.path).toBe('/admin/resolved-tickets')
   })
 
+  it('requires confirmation before deleting a customer account from the action icon', async () => {
+    directoryApi.deleteCustomer.mockResolvedValueOnce(undefined)
+    const wrapper = mountRouter(true)
+    await router.push('/admin/customers')
+    await flushPromises()
+    await wrapper.get('.directory-table tbody tr .technician-delete-icon').trigger('click')
+    expect(directoryApi.deleteCustomer).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('account and login permanently?')
+    await wrapper.get('.technician-delete-actions .button-primary').trigger('click')
+    await flushPromises()
+    expect(directoryApi.deleteCustomer).toHaveBeenCalledWith(4)
+    expect(wrapper.text()).toContain('Customer account deleted.')
+    expect(wrapper.text()).not.toContain('Casey Rivera')
+  })
+
+  it('shows terminal ticket trash icons and requires confirmation before deleting', async () => {
+    ticketApi.listTickets.mockResolvedValueOnce([
+      ticketRecords[0]!,
+      { ...ticketRecords[0]!, id: 70, status: 'RESOLVED' },
+      { ...ticketRecords[0]!, id: 71, status: 'CANCELLED' },
+    ])
+    ticketApi.deleteTicket.mockResolvedValueOnce(undefined)
+    const wrapper = mountRouter(true)
+    await router.push('/admin/tickets')
+    await flushPromises()
+    expect(wrapper.findAll('.ticket-table .ticket-delete-icon')).toHaveLength(2)
+    await wrapper.get('.ticket-table .ticket-delete-icon').trigger('click')
+    expect(ticketApi.deleteTicket).not.toHaveBeenCalled()
+    await wrapper.get('.confirm-ticket-delete').trigger('click')
+    await flushPromises()
+    expect(ticketApi.deleteTicket).toHaveBeenCalledWith(71)
+    expect(wrapper.text()).toContain('Ticket deleted.')
+    expect(wrapper.findAll('.ticket-table .ticket-delete-icon')).toHaveLength(1)
+  })
+
+  it('confirms technician account deletion and removes the account from the directory', async () => {
+    directoryApi.deleteTechnician.mockResolvedValueOnce(undefined)
+    const wrapper = mountRouter(true)
+    await router.push('/admin/technicians')
+    await flushPromises()
+    await wrapper.get('.directory-table tbody tr .technician-delete-icon').trigger('click')
+    expect(directoryApi.deleteTechnician).not.toHaveBeenCalled()
+    await wrapper.get('.technician-delete-actions .button-primary').trigger('click')
+    await flushPromises()
+    expect(directoryApi.deleteTechnician).toHaveBeenCalledWith(7)
+    expect(wrapper.text()).toContain('Technician account deleted.')
+    expect(wrapper.text()).not.toContain('Sam Taylor')
+  })
+
+  it('keeps the technician visible when assignment history blocks deletion', async () => {
+    directoryApi.deleteTechnician.mockRejectedValueOnce(new Error('Protected'))
+    const wrapper = mountRouter(true)
+    await router.push('/admin/technicians')
+    await flushPromises()
+    await wrapper.get('.directory-table tbody tr .technician-delete-icon').trigger('click')
+    await wrapper.get('.technician-delete-actions .button-primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Could not delete this technician account.')
+    expect(wrapper.text()).toContain('Sam Taylor')
+  })
+
   it('counts only active technician assignments and shows their linked tickets', async () => {
     assignmentApi.listAssignments.mockResolvedValueOnce([assignmentRecord, { ...assignmentRecord, id: 16, tickets: 50, is_active: false }])
     const wrapper = mountRouter()
@@ -280,13 +382,17 @@ describe('administrator ticket management', () => {
   })
 
   it('cancels an active ticket and removes its edit and assignment actions', async () => {
-    ticketApi.updateTicketStatus.mockResolvedValueOnce({ ...ticketRecords[0]!, status: 'CANCELLED' })
+    ticketApi.updateTicketStatus.mockResolvedValueOnce({ ...ticketRecords[0]!, status: 'CANCELLED', cancellation_reason: 'Duplicate request.' })
     const wrapper = mountRouter()
     await router.push('/admin/tickets/51')
     await flushPromises()
     await wrapper.get('.ticket-cancel-actions button').trigger('click')
+    expect(ticketApi.updateTicketStatus).not.toHaveBeenCalled()
+    await wrapper.get('#ticket-cancellation-reason').setValue('Duplicate request.')
+    await wrapper.get('.ticket-cancellation-form').trigger('submit')
     await flushPromises()
-    expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('51', 'CANCELLED')
+    expect(wrapper.text()).toContain('Duplicate request.')
+    expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('51', 'CANCELLED', 'Duplicate request.')
     expect(wrapper.text()).toContain('Ticket cancelled.')
     expect(wrapper.find('.ticket-cancel-actions').exists()).toBe(false)
     expect(wrapper.find('.ticket-edit-button').exists()).toBe(false)

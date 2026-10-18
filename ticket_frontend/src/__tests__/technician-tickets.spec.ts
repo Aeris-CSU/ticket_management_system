@@ -65,6 +65,8 @@ describe('technician ticket workflow', () => {
     expect(popup.hasAttribute('open')).toBe(true)
     expect(router.currentRoute.value.path).toBe(path)
     expect(popup.textContent).toContain('Casey Rivera')
+    expect(popup.querySelector('.ticket-edit-button')).toBeNull()
+    expect(popup.querySelector('.ticket-detail-edit')).toBeNull()
     ;(popup.querySelector('.technician-status-actions button') as HTMLButtonElement).click()
     await flushPromises()
     expect(ticketApi.updateTicketStatus).toHaveBeenCalledWith('91', 'ONGOING')

@@ -77,6 +77,18 @@ describe('shared role dashboards', () => {
     const wrapper = mountRouter()
     await router.push('/customer')
 
+    expect(wrapper.get('.dashboard-menu-button').attributes('aria-expanded')).toBe('true')
+    await wrapper.get('.dashboard-menu-button').trigger('click')
+    expect(wrapper.get('.dashboard-shell').classes()).toContain('sidebar-collapsed')
+    expect(wrapper.get('.dashboard-menu-button').attributes('aria-expanded')).toBe('false')
+    await wrapper.get('.dashboard-menu-button').trigger('click')
+    expect(wrapper.get('.dashboard-shell').classes()).not.toContain('sidebar-collapsed')
+    expect(wrapper.get('.dashboard-sidebar-footer .dashboard-logout').text()).toBe('Log out')
+    expect(wrapper.find('.dashboard-header .dashboard-logout').exists()).toBe(false)
+    const originalWidth = window.innerWidth
+    window.innerWidth = 600
+    window.dispatchEvent(new Event('resize'))
+    await wrapper.vm.$nextTick()
     const menu = wrapper.get('.dashboard-menu-button')
     expect(menu.attributes('aria-expanded')).toBe('false')
     await menu.trigger('click')
@@ -87,7 +99,9 @@ describe('shared role dashboards', () => {
 
     await wrapper.get('.dashboard-logout').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.path).toBe('/')
     expect(auth.isAuthenticated).toBe(false)
+    window.innerWidth = originalWidth
+    window.dispatchEvent(new Event('resize'))
   })
 })

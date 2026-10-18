@@ -18,6 +18,14 @@ const mountQueue = () => mount(ActiveTicketQueue, { props: { tickets: records, a
 const ids = (wrapper: ReturnType<typeof mountQueue>) => wrapper.findAll('tbody tr').map((row) => row.findAll('td')[1]!.text())
 
 describe('active first come, first served queue', () => {
+  it('displays the saved ticket number while keeping numeric IDs for actions', async () => {
+    const wrapper = mountQueue()
+    await wrapper.setProps({ tickets: [{ ...records[0]!, ticket_number: 'TCK 20261018-0001' }] })
+    expect(ids(wrapper)).toEqual(['TCK 20261018-0001'])
+    await wrapper.get('tbody button').trigger('click')
+    expect(wrapper.emitted('viewTicket')).toEqual([[9]])
+  })
+
   it('excludes terminal tickets and sorts by submission time then ID regardless of status', () => {
     const wrapper = mountQueue()
     expect(ids(wrapper)).toEqual(['#2', '#4', '#9'])

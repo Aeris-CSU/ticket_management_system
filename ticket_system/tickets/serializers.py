@@ -13,8 +13,8 @@ class TicketsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tickets
-        fields = ['id', 'problem_title', 'problem_description', 'contact_number', 'address', 'status', 'customer', 'customer_name', 'customer_address', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'status', 'customer_name', 'created_at', 'updated_at']
+        fields = ['id', 'ticket_number', 'problem_title', 'problem_description', 'contact_number', 'address', 'status', 'cancellation_reason', 'customer', 'customer_name', 'customer_address', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'ticket_number', 'ticket_number', 'status', 'cancellation_reason', 'customer_name', 'created_at', 'updated_at']
 
     def get_customer_name(self, obj):
         user = obj.customer.user
@@ -53,3 +53,4 @@ class TicketsSerializer(serializers.ModelSerializer):
 
 class TicketStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Tickets.Status.choices)
+    cancellation_reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)

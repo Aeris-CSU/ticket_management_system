@@ -100,7 +100,15 @@ const overview = computed(() => ({
     <div v-if="isLoading" class="dashboard-message" role="status">{{ role === 'ADMIN' ? 'Loading ticket overview…' : role === 'TECHNICIAN' ? 'Loading your assigned tickets…' : 'Loading your ticket overview…' }}</div>
       <div v-else-if="errorMessage" class="form-message form-error" role="alert">{{ errorMessage }}</div>
       <div v-else-if="hasLoaded" class="dashboard-stat-grid" aria-label="Ticket overview">
-        <article v-for="stat in stats" :key="stat.label" class="dashboard-stat-card">
+        <article v-for="(stat, index) in stats" :key="stat.label" class="dashboard-stat-card">
+          <span class="dashboard-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <template v-if="index === 0"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V2h6v2M9 10h6M9 14h6M9 18h3" /></template>
+              <template v-else-if="index === 1"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></template>
+              <template v-else-if="index === 2"><path d="m14 6 4-3 3 3-3 4M10 18l-4 3-3-3 3-4M8 16l8-8" /><path d="m5 5 14 14" /></template>
+              <template v-else><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></template>
+            </svg>
+          </span>
           <span>{{ stat.label }}</span><strong>{{ stat.value }}</strong>
           <small v-if="role === 'ADMIN'">{{ stat.label === 'Ongoing Tickets' ? 'Assigned or currently being handled.' : stat.label === 'Total Tickets' ? 'All submitted support requests.' : stat.label === 'Open Tickets' ? 'Waiting to be assigned.' : 'Completed support requests.' }}</small>
         </article>
@@ -115,7 +123,7 @@ const overview = computed(() => ({
         </div>
         <div v-if="recentTickets.length" class="dashboard-recent-list">
           <button type="button" @click="selectedTicketId = ticket.id" v-for="ticket in recentTickets" :key="ticket.id" class="dashboard-recent-row" :class="{ 'is-admin': role === 'TECHNICIAN' }">
-            <span class="dashboard-ticket-id">#{{ ticket.id }}</span>
+            <span class="dashboard-ticket-id">{{ ticket.ticket_number || `#${ticket.id}` }}</span>
             <span class="dashboard-ticket-title">{{ ticket.problem_title }}</span>
             <span v-if="role === 'TECHNICIAN'" class="dashboard-ticket-customer">{{ ticket.customer_name }}</span>
             <TicketStatusBadge :status="ticket.status" />

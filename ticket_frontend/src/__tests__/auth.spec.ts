@@ -182,7 +182,7 @@ describe('authentication flow', () => {
 
     await wrapper.get('.dashboard-logout').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.path).toBe('/')
     expect(sessionStorage.getItem('tickarla.refresh')).toBeNull()
 
     await router.push('/customer')

@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from .models import Customers
 from .serializers import CustomersSerializer, CustomerListSerializer
 from rest_framework import status
@@ -7,6 +9,17 @@ from authentication.models import Authentication
 from authentication.permissions import AdminPermission, CustomerPermission
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import AllowAny
+
+def delete_customer_account(customer):
+    try:
+        with transaction.atomic():
+            if customer.tickets_set.exists():
+                return Response({'detail': 'Customers with ticket history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
+            customer.user.delete()
+    except ProtectedError:
+        return Response({'detail': 'Customers with ticket history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class CustomersView(APIView):
     permission_classes = [AdminPermission | CustomerPermission]
@@ -51,10 +64,7 @@ class CustomersDelete(APIView):
     def delete(self, request, pk):
         customer = get_object_or_404(Customers, pk=pk)
         self.check_object_permissions(request, customer)
-        if customer.tickets_set.exists():
-            return Response({'detail': 'Customers with ticket history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
-        customer.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return delete_customer_account(customer)
 
 
 
@@ -112,7 +122,4 @@ class CustomersDetail(APIView):
                 status = status.HTTP_404_NOT_FOUND
             )
         self.check_object_permissions(request, customer)
-        if customer.tickets_set.exists():
-            return Response({'detail': 'Customers with ticket history cannot be deleted.'}, status=status.HTTP_409_CONFLICT)
-        customer.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return delete_customer_account(customer)

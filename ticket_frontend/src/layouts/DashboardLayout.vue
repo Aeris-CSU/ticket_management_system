@@ -5,10 +5,16 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar.vue'
 
 const sidebarOpen = ref(false)
+const desktopCollapsed = ref(false)
+
+function toggleMenu() {
+  if (window.innerWidth > 700) desktopCollapsed.value = !desktopCollapsed.value
+  else sidebarOpen.value = !sidebarOpen.value
+}
 </script>
 
 <template>
-  <div class="dashboard-shell" @keydown.esc="sidebarOpen = false">
+  <div class="dashboard-shell" :class="{ 'sidebar-collapsed': desktopCollapsed }" @keydown.esc="sidebarOpen = false">
     <DashboardSidebar :open="sidebarOpen" @close="sidebarOpen = false" />
     <button
       v-if="sidebarOpen"
@@ -18,7 +24,7 @@ const sidebarOpen = ref(false)
       @click="sidebarOpen = false"
     />
     <div class="dashboard-main">
-      <DashboardHeader :menu-open="sidebarOpen" @open-menu="sidebarOpen = true" />
+      <DashboardHeader :menu-open="sidebarOpen" :desktop-collapsed="desktopCollapsed" @open-menu="toggleMenu" />
       <main class="dashboard-content" id="dashboard-content">
         <RouterView />
       </main>
