@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NotificationBell from './NotificationBell.vue'
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -29,6 +30,7 @@ const title = computed(() => String(route.meta.title || 'Dashboard'))
     </button>
     <h1>{{ title }}</h1>
     <div class="dashboard-account">
+      <NotificationBell />
       <ThemeToggle />
     </div>
   </header>
