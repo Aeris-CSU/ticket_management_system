@@ -118,7 +118,7 @@ describe('authentication flow', () => {
     expect(router.currentRoute.value.path).toBe('/login')
   })
 
-  it('creates a customer account and routes to login without signing in', async () => {
+  it('creates a customer account and routes to the landing page without signing in', async () => {
     const wrapper = mountRouter()
     await router.push('/register')
     await flushPromises()
@@ -134,8 +134,8 @@ describe('authentication flow', () => {
     expect(mocks.registerRequest).toHaveBeenCalledWith({
       username: 'newcustomer', email: undefined, address: 'Campus', contact_number: '09171234567', password: 'ExamplePass123!',
     })
-    expect(router.currentRoute.value.path).toBe('/login')
-    expect(router.currentRoute.value.query.registered).toBe('1')
+    expect(router.currentRoute.value.path).toBe('/')
+    expect(wrapper.find('.landing-page').exists()).toBe(true)
     expect(sessionStorage.getItem('tickarla.access')).toBeNull()
   })
 

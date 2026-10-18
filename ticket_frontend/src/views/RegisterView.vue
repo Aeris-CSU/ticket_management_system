@@ -43,7 +43,7 @@ async function submitRegistration() {
       contact_number: contactNumber.value.trim(),
       password: password.value,
     })
-    await router.replace({ path: '/login', query: { registered: '1' } })
+    await router.replace('/')
   } catch (error) {
     errorMessage.value = readableAuthError(error, 'Unable to create your account. Please review the information and try again.')
   } finally {

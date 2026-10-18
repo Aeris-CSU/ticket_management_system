@@ -49,7 +49,7 @@ class TicketDetailBase(APIView):
 
 
 class TicketsUpdate(TicketDetailBase):
-    permission_classes = [AdminPermission]
+    permission_classes = [AdminPermission | CustomerPermission]
 
     def put(self, request, pk):
         ticket = self.get_ticket(pk)
@@ -81,8 +81,8 @@ class TicketsDetail(TicketDetailBase):
         return Response(TicketsSerializer(ticket).data)
 
     def put(self, request, pk):
-        if request.user.role != Authentication.ROLE_CHOICES.ADMIN:
-            raise PermissionDenied('Only administrators can edit ticket details.')
+        if request.user.role not in (Authentication.ROLE_CHOICES.ADMIN, Authentication.ROLE_CHOICES.CUSTOMER):
+            raise PermissionDenied('Technicians cannot edit ticket details.')
         return TicketsUpdate().put(request, pk)
 
     def delete(self, request, pk):

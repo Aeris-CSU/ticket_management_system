@@ -37,7 +37,7 @@ const profileOpen = ref(false)
     </button>
     <h1>{{ title }}</h1>
     <div class="dashboard-account">
-      <button v-if="auth.user?.role === 'ADMIN' || auth.user?.role === 'CUSTOMER'" class="dashboard-profile-button" type="button" :aria-label="auth.user?.role === 'ADMIN' ? 'Open admin profile' : 'Open customer profile'" :aria-expanded="profileOpen" @click="profileOpen = true">
+      <button v-if="auth.user?.role === 'ADMIN' || auth.user?.role === 'CUSTOMER' || auth.user?.role === 'TECHNICIAN'" class="dashboard-profile-button" type="button" :aria-label="auth.user?.role === 'ADMIN' ? 'Open admin profile' : auth.user?.role === 'TECHNICIAN' ? 'Open technician profile' : 'Open customer profile'" :aria-expanded="profileOpen" @click="profileOpen = true">
       <span class="dashboard-avatar" aria-hidden="true">{{ username.charAt(0).toUpperCase() }}</span>
       <span class="dashboard-account-copy"><strong>{{ username }}</strong><small>{{ roleLabel }}</small></span>
       </button>
@@ -46,5 +46,5 @@ const profileOpen = ref(false)
     </div>
   </header>
   <CustomerProfileModal v-if="profileOpen && auth.user?.role === 'CUSTOMER'" @close="profileOpen = false" />
-  <AdminProfileModal v-if="profileOpen && auth.user?.role === 'ADMIN'" @close="profileOpen = false" />
+  <AdminProfileModal v-if="profileOpen && (auth.user?.role === 'ADMIN' || auth.user?.role === 'TECHNICIAN')" @close="profileOpen = false" />
 </template>

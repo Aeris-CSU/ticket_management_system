@@ -39,6 +39,11 @@ class TicketsSerializer(serializers.ModelSerializer):
                 attrs['customer'] = customer
             elif self.instance.customer_id != customer.pk:
                 raise serializers.ValidationError({'customer': 'Customers can only modify their own tickets.'})
+            if self.instance:
+                if self.instance.status != Tickets.Status.OPEN:
+                    raise serializers.ValidationError({'detail': 'Customers can only edit open tickets before assignment.'})
+                if 'customer' in attrs and attrs['customer'].pk != customer.pk:
+                    raise serializers.ValidationError({'customer': 'You cannot change the ticket owner.'})
         elif self.instance is None and 'customer' not in attrs:
             raise serializers.ValidationError({'customer': 'This field is required.'})
         return attrs

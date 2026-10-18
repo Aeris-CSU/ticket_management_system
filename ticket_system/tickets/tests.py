@@ -288,3 +288,34 @@ class TicketApiTests(APITestCase):
             self.assertNotIn(ticket.pk, [item['id'] for item in self.client.get('/api/tickets/').data])
             self.client.force_authenticate(self.customer.user)
             self.assertNotIn(ticket.pk, [item['id'] for item in self.client.get('/api/tickets/').data])
+
+    def test_customer_edits_own_open_ticket_on_both_routes(self):
+        ticket = self.create_ticket()
+        self.client.force_authenticate(self.customer.user)
+        for prefix in ('/api/tickets/', '/api/tickets/update/'):
+            response = self.client.put(f'{prefix}{ticket.pk}/', {
+                'problem_title': 'Updated issue', 'problem_description': 'More details',
+                'address': 'Room 2', 'contact_number': '09123456789',
+            }, format='json')
+            self.assertEqual(response.status_code, 200)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.problem_title, 'Updated issue')
+        self.assertEqual(ticket.address, 'Room 2')
+        other = self.create_ticket(self.other_customer)
+        for prefix in ('/api/tickets/', '/api/tickets/update/'):
+            self.assertEqual(self.client.put(f'{prefix}{other.pk}/', {'problem_title': 'Bad'}, format='json').status_code, 403)
+        response = self.client.put(f'/api/tickets/{ticket.pk}/', {'customer': self.other_customer.pk}, format='json')
+        self.assertEqual(response.status_code, 400)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.customer_id, self.customer.pk)
+
+    def test_customer_cannot_edit_ticket_after_assignment(self):
+        ticket = self.create_ticket()
+        self.client.force_authenticate(self.customer.user)
+        for current in ('ASSIGNED', 'ONGOING', 'RESOLVED', 'CANCELLED'):
+            ticket.status = current
+            ticket.save(update_fields=['status'])
+            for prefix in ('/api/tickets/', '/api/tickets/update/'):
+                self.assertEqual(self.client.put(f'{prefix}{ticket.pk}/', {'problem_title': 'Bad'}, format='json').status_code, 400)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.problem_title, 'Wi-Fi issue')

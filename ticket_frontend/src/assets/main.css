@@ -2389,3 +2389,13 @@ html[data-theme='dark'] .dashboard-quick-icon { color: #a7c9f8; }
   .dashboard-welcome-name { margin-top: 16px; }
   .dashboard-quick-card { padding: 18px; }
 }
+
+/* Daily ticket numbers need an intrinsic column, rather than the old short-ID width. */
+.dashboard-recent-row { grid-template-columns: max-content minmax(0, 1fr) auto auto; column-gap: 22px; }
+.dashboard-recent-row.is-admin { grid-template-columns: max-content minmax(0, 1fr) minmax(90px, .7fr) auto auto; }
+.dashboard-recent-row .dashboard-ticket-title { min-width: 0; }
+@media (max-width: 700px) {
+  .dashboard-recent-row, .dashboard-recent-row.is-admin { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; padding: 16px; }
+  .dashboard-recent-row .dashboard-ticket-id { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
+  .dashboard-recent-row .dashboard-ticket-title { grid-column: 1; }
+}

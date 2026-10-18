@@ -224,3 +224,32 @@ class SelfDeletionTests(APITestCase):
             self.client.force_authenticate(user)
             self.assertEqual(self.client.delete('/api/accounts/me/').status_code, 409)
             self.assertTrue(Authentication.objects.filter(pk=user.pk).exists())
+
+
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class TechnicianPasswordTests(APITestCase):
+    def test_technician_changes_only_own_password(self):
+        tech = Authentication.objects.create_user(username='password-tech', password='OldTechSecret123!', role='TECHNICIAN')
+        other = Authentication.objects.create_user(username='other-tech', password='OtherSecret123!', role='TECHNICIAN')
+        self.client.force_authenticate(tech)
+        response = self.client.post('/api/change-password/', {
+            'current_password': 'OldTechSecret123!', 'new_password': 'FreshTechSecret456!',
+            'confirm_password': 'FreshTechSecret456!', 'user_id': other.pk,
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        tech.refresh_from_db()
+        other.refresh_from_db()
+        self.assertTrue(tech.check_password('FreshTechSecret456!'))
+        self.assertFalse(tech.check_password('OldTechSecret123!'))
+        self.assertTrue(other.check_password('OtherSecret123!'))
+
+    def test_wrong_current_password_does_not_change_technician_password(self):
+        tech = Authentication.objects.create_user(username='password-tech', password='OldTechSecret123!', role='TECHNICIAN')
+        self.client.force_authenticate(tech)
+        response = self.client.post('/api/change-password/', {
+            'current_password': 'wrong', 'new_password': 'FreshTechSecret456!',
+            'confirm_password': 'FreshTechSecret456!',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        tech.refresh_from_db()
+        self.assertTrue(tech.check_password('OldTechSecret123!'))

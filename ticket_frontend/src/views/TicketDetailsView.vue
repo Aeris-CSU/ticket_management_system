@@ -47,7 +47,7 @@ const canResolve = computed(() => isTechnician.value && Boolean(activeAssignment
 const canCancel = computed(() => Boolean(ticket.value && (isAdmin.value
   ? ['OPEN', 'ASSIGNED', 'ONGOING'].includes(ticket.value.status)
   : !isTechnician.value && ticket.value.status === 'OPEN')))
-const canEditDetails = computed(() => Boolean(ticket.value && !['RESOLVED', 'CANCELLED'].includes(ticket.value.status) && isAdmin.value))
+const canEditDetails = computed(() => Boolean(ticket.value && !['RESOLVED', 'CANCELLED'].includes(ticket.value.status) && (isAdmin.value || (route.meta.role === 'CUSTOMER' && ticket.value.status === 'OPEN'))))
 
 function startEditing() {
   if (!ticket.value || !canEditDetails.value) return

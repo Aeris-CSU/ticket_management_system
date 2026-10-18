@@ -28,7 +28,7 @@ async function save() {
 </script>
 
 <template>
-  <DirectoryDetailsModal title="Admin profile" :dismissible="!saving" @close="emit('close')">
+  <DirectoryDetailsModal :title="auth.user?.role === 'TECHNICIAN' ? 'Technician profile' : 'Admin profile'" :dismissible="!saving" @close="emit('close')">
     <form class="ticket-form-card technician-create-form" @submit.prevent="save">
       <p class="technician-form-note">Signed in as <strong>{{ auth.user?.username }}</strong>. Enter your current password to choose a new one.</p>
       <p v-if="error" class="form-message form-error" role="alert">{{ error }}</p>

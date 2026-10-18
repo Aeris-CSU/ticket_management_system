@@ -7,13 +7,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from authentication.serializers import AuthenticationSerializer
 from .models import Authentication
-from .permissions import AdminPermission
+from .permissions import AdminPermission, TechnicianPermission
 from django.db import transaction
 from .serializers import ChangePasswordSerializer
 
 
 class ChangePassword(APIView):
-    permission_classes = [AdminPermission]
+    permission_classes = [AdminPermission | TechnicianPermission]
 
     def post(self, request):
         with transaction.atomic():
